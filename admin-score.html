@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Score Control</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .score-display {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .batting-team {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .score {
+            font-size: 36px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 5px 0;
+        }
+        .overs {
+            font-size: 20px;
+            color: #7f8c8d;
+        }
+        .this-over {
+            margin-top: 15px;
+            font-size: 18px;
+        }
+        .this-over span {
+            display: inline-block;
+            margin: 0 5px;
+            font-weight: bold;
+        }
+        .button-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .action-btn {
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .action-btn:active {
+            transform: translateY(0);
+        }
+        .run-btn {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .wicket-btn {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .extra-btn {
+            background-color: #f39c12;
+            color: white;
+        }
+        .custom-container {
+            margin-top: 20px;
+        }
+        .custom-input {
+            padding: 10px;
+            width: 60px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .custom-btn {
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .match-info {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Score Control</h1>
+    
+    <div class="match-info" id="matchInfo">
+        Loading match info...
+    </div>
+    
+    <div class="score-display">
+        <div class="batting-team" id="battingTeam">-</div>
+        <div class="score" id="currentScore">0 - 0</div>
+        <div class="overs" id="currentOvers">0.0 / 0 overs</div>
+        <div class="this-over">
+            This over: <span id="thisOverDisplay"></span>
+        </div>
+    </div>
+    
+    <div class="button-container">
+        <button class="action-btn run-btn" onclick="updateScore('0')">0</button>
+        <button class="action-btn run-btn" onclick="updateScore('1')">1</button>
+        <button class="action-btn run-btn" onclick="updateScore('2')">2</button>
+        <button class="action-btn run-btn" onclick="updateScore('3')">3</button>
+        <button class="action-btn run-btn" onclick="updateScore('4')">4</button>
+        <button class="action-btn run-btn" onclick="updateScore('6')">6</button>
+        <button class="action-btn wicket-btn" onclick="updateScore('wicket')">Wicket</button>
+        <button class="action-btn extra-btn" onclick="updateScore('WD')">WD</button>
+        <button class="action-btn extra-btn" onclick="updateScore('NB')">NB</button>
+    </div>
+    
+    <div class="custom-container">
+        <input type="number" id="customRun" class="custom-input" min="0" placeholder="Runs">
+        <button class="custom-btn" onclick="updateScore('custom')">Custom Run</button>
+    </div>
+    
+    <script>
+        function fetchMatchInfo() {
+            fetch('/api/score')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.team1) {
+                        // Update match info
+                        document.getElementById('matchInfo').innerHTML = `
+                            <strong>${data.team1}</strong> vs <strong>${data.team2}</strong> | 
+                            Toss: ${data.toss_winner === 'team1' ? data.team1 : data.team2} ${data.toss_decision === 'bat' ? 'bat' : 'bowl'}
+                        `;
+                        
+                        // Update score display
+                        const battingTeam = data.current_batting == 1 ? data.team1 : data.team2;
+                        document.getElementById('battingTeam').textContent = battingTeam;
+                        document.getElementById('currentScore').textContent = 
+                            `${data.current_runs} - ${data.current_wickets}`;
+                        document.getElementById('currentOvers').textContent = 
+                            `${data.current_overs.toFixed(1)} / ${data.total_overs} overs`;
+                            
+                        // Update this over display
+                        const thisOver = data.this_over ? data.this_over.split(',') : [];
+                        document.getElementById('thisOverDisplay').innerHTML = 
+                            thisOver.map(ball => `<span>${ball}</span>`).join('');
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+        
+        function updateScore(action) {
+            const customRun = action === 'custom' ? 
+                document.getElementById('customRun').value : 
+                null;
+                
+            if (action === 'custom' && (!customRun || isNaN(customRun))) {
+                alert('Please enter a valid run value');
+                return;
+            }
+            
+            fetch('/api/update-score', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action, customRun })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    fetchMatchInfo();
+                    if (action === 'custom') {
+                        document.getElementById('customRun').value = '';
+                    }
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Fetch match info every 2 seconds
+        setInterval(fetchMatchInfo, 2000);
+        fetchMatchInfo(); // Initial load
+    </script>
+</body>
+</html>
