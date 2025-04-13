@@ -232,27 +232,18 @@ app.post('/api/update-score', async (req, res) => {
   
       let { currentRuns, currentWickets, currentOvers, thisOver, totalOvers } = match;
       let overHistory = thisOver ? thisOver.split(',') : [];
+      let currentOverBalls = overHistory.slice(-6); // Last 6 balls for current over
   
       // Process the action
       let runsToAdd = 0;
       let wicketToAdd = 0;
-      let ballsToAdd = 0;
+      let isLegalBall = true;
       let overEntry = '';
   
       // Handle different actions
-      switch (action) {
-        case 'NB':
-          runsToAdd = 1 + (nbAdditionalRuns || 0);
-          overEntry = displayText || 'NB';
-          break;
-        case 'WD':
-          runsToAdd = 1;
-          overEntry = 'WD';
-          break;
-        case 'W':
-          wicketToAdd = 1;
-          overEntry = 'W';
-          ballsToAdd = 1;
+      switch (action.toString()) { // Ensure action is string
+        case '0':
+          overEntry = '0';
           break;
         case '1':
         case '2':
@@ -261,7 +252,20 @@ app.post('/api/update-score', async (req, res) => {
         case '6':
           runsToAdd = parseInt(action);
           overEntry = action;
-          ballsToAdd = 1;
+          break;
+        case 'W':
+          wicketToAdd = 1;
+          overEntry = 'W';
+          break;
+        case 'WD':
+          runsToAdd = 1;
+          overEntry = 'WD';
+          isLegalBall = false;
+          break;
+        case 'NB':
+          runsToAdd = 1 + (parseInt(nbAdditionalRuns) || 0);
+          overEntry = displayText || `NB${nbAdditionalRuns ? `+${nbAdditionalRuns}` : ''}`;
+          isLegalBall = false;
           break;
         case 'custom':
           if (!customRun || isNaN(customRun)) {
@@ -269,7 +273,6 @@ app.post('/api/update-score', async (req, res) => {
           }
           runsToAdd = parseInt(customRun);
           overEntry = customRun;
-          ballsToAdd = 1;
           break;
         default:
           throw new Error('Invalid action');
@@ -278,18 +281,22 @@ app.post('/api/update-score', async (req, res) => {
       // Update match data
       currentRuns += runsToAdd;
       currentWickets += wicketToAdd;
-      
-      // Handle over progression (6 balls = 1 over)
-      if (ballsToAdd > 0) {
-        const [overs, balls] = currentOvers.toString().split('.').map(Number);
-        const newBalls = (balls || 0) + ballsToAdd;
-        currentOvers = overs + Math.floor(newBalls / 6) + (newBalls % 6) * 0.1;
+  
+      // Handle over progression (only count legal balls)
+      if (isLegalBall) {
+        const currentBalls = overHistory.filter(ball => 
+          !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+        ).length % 6;
+        
+        // If we've completed an over (6 legal balls)
+        if (currentBalls === 5) {
+          currentOvers = Math.floor(currentOvers) + 1;
+        }
       }
   
       // Update over history
-      if (overEntry) {
-        overHistory.push(overEntry);
-      }
+      overHistory.push(overEntry);
+      currentOverBalls = overHistory.slice(-6); // Update current over balls
   
       // Save updated match
       await match.update({
@@ -299,14 +306,20 @@ app.post('/api/update-score', async (req, res) => {
         thisOver: overHistory.join(',')
       });
   
-      // Return updated score
+      // Calculate balls in current over (0.1 to 0.6 format)
+      const legalBallsInOver = currentOverBalls.filter(ball => 
+        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+      ).length;
+      const oversDisplay = `${Math.floor(currentOvers)}.${legalBallsInOver}`;
+  
       res.json({ 
         success: true,
         currentRuns,
         currentWickets,
-        currentOvers: parseFloat(currentOvers.toFixed(1)),
-        thisOver: overHistory.join(','),
+        currentOvers: oversDisplay,
         totalOvers,
+        thisOver: currentOverBalls.join(','),
+        fullOverHistory: overHistory.join(','),
         message: 'Score updated successfully'
       });
   

@@ -404,25 +404,50 @@
             .then(data => {
                 console.log("Update successful:", data);
                 // Update UI immediately
-                if (data.currentRuns !== undefined) {
-                    document.getElementById('currentScore').textContent = 
-                        `${data.currentRuns} - ${data.currentWickets}`;
-                }
-                if (data.currentOvers !== undefined) {
-                    document.getElementById('currentOvers').textContent = 
-                        `${data.currentOvers} / ${data.totalOvers} overs`;
-                }
-                if (data.thisOver !== undefined) {
-                    document.getElementById('thisOverDisplay').innerHTML = 
-                        data.thisOver.split(',').filter(Boolean).map(ball => 
-                            `<span class="ball-${ball.trim()}">${ball.trim()}</span>`
-                        ).join(' ');
-                }
+                document.getElementById('currentScore').textContent = 
+                    `${data.currentRuns} - ${data.currentWickets}`;
+                
+                document.getElementById('currentOvers').textContent = 
+                    `${data.currentOvers} / ${data.totalOvers} overs`;
+                
+                // Show only current over (last 6 balls)
+                const currentOverBalls = data.fullOverHistory.split(',').slice(-6);
+                document.getElementById('thisOverDisplay').innerHTML = 
+                    currentOverBalls.map(ball => {
+                        if (ball === 'W') return `<span class="ball-W">W</span>`;
+                        if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
+                        if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
+                        if (ball === '4') return `<span class="ball-4">4</span>`;
+                        if (ball === '6') return `<span class="ball-6">6</span>`;
+                        return `<span class="ball-${ball}">${ball}</span>`;
+                    }).join(' ');
             })
             .catch(error => {
                 console.error('Update error:', error);
                 alert(`Update failed: ${error.message}`);
             });
+        }
+        
+        // NB Button handler
+        function handleNbButton() {
+            nbActive = !nbActive;
+            document.getElementById('nbButton').classList.toggle('active', nbActive);
+            document.getElementById('nbRunButtons').style.display = nbActive ? 'grid' : 'none';
+        }
+        
+        // Run button handler
+        function handleRunButton(runs) {
+            if (nbActive && runs !== 'W') { // Can't have NB + W
+                handleNbRun(runs);
+            } else {
+                updateScore(runs);
+            }
+        }
+        
+        // NB Run handler
+        function handleNbRun(runs) {
+            updateScore('NB', runs);
+            handleNbButton(); // Turn off NB mode
         }
         
         function showWinnerModal() {
