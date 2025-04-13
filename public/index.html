@@ -502,69 +502,91 @@
         }
     
         function updateUI(data) {
-            if (data.team1) {
-                document.getElementById('team1-name').textContent = data.team1;
-                document.getElementById('team2-name').textContent = data.team2;
-                
-                const tossWinner = data.toss_winner === 'team1' ? data.team1 : data.team2;
-                const tossDecision = data.toss_decision === 'bat' ? 'Chose to Batting' : 'Chose to Bowling';
-                document.getElementById('toss-info').textContent = 
-                    `Toss Winner  : ${tossWinner} | ${tossDecision}`;
-                
-                const battingTeam = data.current_batting == 1 ? data.team1 : data.team2;
-                document.getElementById('current-batting-team').textContent = battingTeam;
-                document.getElementById('current-runs').textContent = data.current_runs;
-                document.getElementById('current-wickets').textContent = `- ${data.current_wickets}`;
-                document.getElementById('current-overs').textContent = 
-                    `${data.current_overs.toFixed(1)} / ${data.total_overs} overs`;
-                
-                const targetDisplay = document.getElementById('target-display');
-                if (data.batting_phase === 'first') {
-                    targetDisplay.textContent = 'First Batting';
-                } else if (data.target_score) {
-                    targetDisplay.textContent = data.target_score;
+            // First check if we have valid data
+            if (!data || !data.team1) {
+                console.error('Invalid data received:', data);
+                return;
+            }
+        
+            // Map API fields to frontend expected fields
+            const mappedData = {
+                team1: data.team1,
+                team2: data.team2,
+                total_overs: data.totalOvers,
+                toss_winner: data.tossWinner,
+                toss_decision: data.tossDecision,
+                current_batting: data.currentBatting,
+                batting_phase: data.battingPhase,
+                target_score: data.targetScore,
+                current_runs: data.currentRuns,
+                current_wickets: data.currentWickets,
+                current_overs: data.currentOvers,
+                this_over: data.thisOver,
+                last_updated: data.last_updated,
+                match_status: data.matchStatus
+            };
+        
+            // Now use the mapped data
+            document.getElementById('team1-name').textContent = mappedData.team1 || 'Team 1';
+            document.getElementById('team2-name').textContent = mappedData.team2 || 'Team 2';
+            
+            const tossWinner = mappedData.toss_winner === 'team1' ? mappedData.team1 : mappedData.team2;
+            const tossDecision = mappedData.toss_decision === 'bat' ? 'Chose to Batting' : 'Chose to Bowling';
+            document.getElementById('toss-info').textContent = 
+                `Toss Winner : ${tossWinner || 'Loading...'} | ${tossDecision || 'Loading...'}`;
+            
+            const battingTeam = mappedData.current_batting == 1 ? mappedData.team1 : mappedData.team2;
+            document.getElementById('current-batting-team').textContent = battingTeam || 'Loading...';
+            
+            document.getElementById('current-runs').textContent = mappedData.current_runs || 0;
+            document.getElementById('current-wickets').textContent = `- ${mappedData.current_wickets || 0}`;
+            
+            const currentOvers = mappedData.current_overs ? parseFloat(mappedData.current_overs) : 0;
+            const totalOvers = mappedData.total_overs ? parseFloat(mappedData.total_overs) : 0;
+            document.getElementById('current-overs').textContent = 
+                `${currentOvers.toFixed(1)} / ${totalOvers} overs`;
+            
+            const targetDisplay = document.getElementById('target-display');
+            if (mappedData.batting_phase === 'first') {
+                targetDisplay.textContent = 'First Batting';
+            } else if (mappedData.target_score) {
+                targetDisplay.textContent = mappedData.target_score;
+            } else {
+                targetDisplay.textContent = '-';
+            }
+            
+            const thisOverContainer = document.getElementById('this-over-display');
+            let currentOverBalls = [];
+            
+            if (mappedData.this_over) {
+                if (Array.isArray(mappedData.this_over)) {
+                    currentOverBalls = mappedData.this_over;
+                } else if (typeof mappedData.this_over === 'string') {
+                    currentOverBalls = mappedData.this_over.split(/[, ]+/);
                 }
                 
-                const thisOverContainer = document.getElementById('this-over-display');
-                let currentOverBalls = [];
-                
-                if (data.this_over) {
-                    if (Array.isArray(data.this_over)) {
-                        currentOverBalls = data.this_over;
-                    } else if (typeof data.this_over === 'string') {
-                        if (data.this_over.includes(',')) {
-                            currentOverBalls = data.this_over.split(',');
-                        } 
-                        else if (data.this_over.includes(' ')) {
-                            currentOverBalls = data.this_over.split(' ');
-                        }
-                        else {
-                            currentOverBalls = data.this_over.split('');
-                        }
-                    }
-                    
-                    currentOverBalls = currentOverBalls
-                        .map(ball => ball.toString().trim())
-                        .filter(ball => ball && ball !== '||' && ball !== ',');
+                currentOverBalls = currentOverBalls
+                    .map(ball => ball.toString().trim())
+                    .filter(ball => ball && ball !== '||');
+            }
+            
+            thisOverContainer.innerHTML = '';
+            currentOverBalls.forEach(ball => {
+                if (ball) {
+                    thisOverContainer.innerHTML += formatBall(ball);
                 }
-                
-                thisOverContainer.innerHTML = '';
-                currentOverBalls.forEach(ball => {
-                    if (ball) {
-                        thisOverContainer.innerHTML += formatBall(ball);
-                    }
-                });
-                   
-                if (data.last_updated) {
-                    const date = new Date(data.last_updated);
-                    document.getElementById('last-updated').textContent = 
-                        `Last updated: ${formatTime(date)}`;
-                }
-                
-                // Update match status
-                if (data.match_status === 'completed') {
-                    sessionStorage.setItem('winnerData', JSON.stringify(data));
-                }
+            });
+               
+            if (mappedData.last_updated) {
+                const date = new Date(mappedData.last_updated);
+                document.getElementById('last-updated').textContent = 
+                    `Last updated: ${formatTime(date)}`;
+            } else {
+                document.getElementById('last-updated').textContent = 'Last updated: Just now';
+            }
+            
+            if (mappedData.match_status === 'completed') {
+                sessionStorage.setItem('winnerData', JSON.stringify(mappedData));
             }
         }
     
