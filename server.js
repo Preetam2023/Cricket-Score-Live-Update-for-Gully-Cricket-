@@ -3,6 +3,8 @@ const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+
+// Initialize the express app
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -41,6 +43,8 @@ db.serialize(() => {
     toss_winner TEXT NOT NULL,
     toss_decision TEXT NOT NULL,
     current_batting INTEGER NOT NULL,
+    batting_phase TEXT NOT NULL DEFAULT 'first',
+    target_score INTEGER DEFAULT NULL,
     current_runs INTEGER DEFAULT 0,
     current_wickets INTEGER DEFAULT 0,
     current_overs REAL DEFAULT 0,
@@ -104,51 +108,62 @@ app.get('/admin/score', (req, res) => {
 // Enhanced match setup API
 app.post('/api/setup', (req, res) => {
   try {
-    const { team1, team2, total_overs, toss_winner, toss_decision, current_batting } = req.body;
+    const { team1, team2, total_overs, toss_winner, toss_decision, current_batting, batting_phase } = req.body;
 
     // Validation
-    if (!team1 || !team2 || !total_overs || !toss_winner || !toss_decision || !current_batting) {
+    if (!team1 || !team2 || !total_overs || !toss_winner || !toss_decision || !current_batting || !batting_phase) {
       throw new Error('All fields are required');
     }
 
-    console.log('Setting up match with:', {
-      team1, team2, 
-      total_overs: parseInt(total_overs),
-      toss_winner, 
-      toss_decision,
-      current_batting: parseInt(current_batting)
-    });
+    const insertMatch = (target_score) => {
+      db.run(
+        `INSERT INTO matches (
+          team1, team2, total_overs, toss_winner, toss_decision, 
+          current_batting, batting_phase, target_score
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          team1.toString().trim(),
+          team2.toString().trim(),
+          parseInt(total_overs),
+          toss_winner.toString().trim(),
+          toss_decision.toString().trim(),
+          parseInt(current_batting),
+          batting_phase,
+          target_score
+        ],
+        function(err) {
+          if (err) {
+            console.error('Database insert error:', err);
+            return res.status(500).json({ 
+              success: false,
+              error: 'Failed to setup match',
+              details: err.message
+            });
+          }
 
-    db.run(
-      `INSERT INTO matches (
-        team1, team2, total_overs, toss_winner, toss_decision, current_batting
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        team1.toString().trim(),
-        team2.toString().trim(),
-        parseInt(total_overs),
-        toss_winner.toString().trim(),
-        toss_decision.toString().trim(),
-        parseInt(current_batting)
-      ],
-      function(err) {
-        if (err) {
-          console.error('Database insert error:', err);
-          return res.status(500).json({ 
-            success: false,
-            error: 'Failed to setup match',
-            details: err.message
+          console.log(`Match setup successful with ID: ${this.lastID}`);
+          res.json({ 
+            success: true,
+            id: this.lastID,
+            redirect: '/admin/score'
           });
         }
+      );
+    };
 
-        console.log(`Match setup successful with ID: ${this.lastID}`);
-        res.json({ 
-          success: true,
-          id: this.lastID,
-          redirect: '/admin/score'
-        });
-      }
-    );
+    if (batting_phase === 'chase') {
+      db.get("SELECT current_runs FROM matches ORDER BY id DESC LIMIT 1", (err, row) => {
+        if (err || !row) {
+          return res.status(400).json({ 
+            success: false,
+            error: "No previous innings found to chase" 
+          });
+        }
+        insertMatch(row.current_runs + 1);
+      });
+    } else {
+      insertMatch(null);
+    }
   } catch (error) {
     console.error('Setup error:', error);
     res.status(400).json({
@@ -224,52 +239,56 @@ app.post('/api/update-score', (req, res) => {
   }
 });
 
+// Process score action
 function processScoreAction(action, customRun, runs, wickets, overs, overHistory) {
-  // Process the action
-  switch (action) {
-    case '0': case '1': case '2': case '3': case '4': case '6':
-      runs += parseInt(action);
-      overs = updateOvers(overs);
-      overHistory.push(action);
-      break;
-    case 'wicket':
-      wickets += 1;
-      overs = updateOvers(overs);
-      overHistory.push('W');
-      break;
-    case 'WD':
-      runs += 1;
-      overHistory.push('WD');
-      break;
-    case 'NB':
-      runs += 1;
-      overHistory.push('NB');
-      break;
-    case 'custom':
-      if (!customRun || isNaN(customRun)) throw new Error('Invalid custom run value');
-      runs += parseInt(customRun);
-      overs = updateOvers(overs);
-      overHistory.push(customRun);
-      break;
-    default:
-      throw new Error('Invalid action');
-  }
+    // Get current ball count (0-5)
+    const balls = Math.round((overs % 1) * 10);
+    
+    // If starting a new over (balls === 0), reset the over history
+    if (balls === 0) {
+        overHistory = [];
+    }
 
-  // Keep only last 6 valid balls
-  const validBalls = overHistory.filter(ball => !['WD', 'NB'].includes(ball));
-  if (validBalls.length > 6) {
-    overHistory = overHistory.slice(-8); // Keep some extra for WD/NB
-  }
+    // Process the action
+    switch (action) {
+        case '0': case '1': case '2': case '3': case '4': case '6':
+            runs += parseInt(action);
+            overs = updateOvers(overs);
+            overHistory.push(action);
+            break;
+        case 'wicket':
+            wickets += 1;
+            overs = updateOvers(overs);
+            overHistory.push('W');
+            break;
+        case 'WD':
+            runs += 1;
+            overHistory.push('WD');
+            break;
+        case 'NB':
+            runs += 1;
+            overHistory.push('NB');
+            break;
+        case 'custom':
+            if (!customRun || isNaN(customRun)) throw new Error('Invalid custom run value');
+            runs += parseInt(customRun);
+            overs = updateOvers(overs);
+            overHistory.push(customRun);
+            break;
+        default:
+            throw new Error('Invalid action');
+    }
 
-  return {
-    runs,
-    wickets,
-    overs,
-    overHistory,
-    thisOver: overHistory.join(',')
-  };
+    return {
+        runs,
+        wickets,
+        overs,
+        overHistory,
+        thisOver: overHistory.join('  ') // Space-separated balls
+    };
 }
 
+// Update overs calculation
 function updateOvers(currentOvers) {
   const balls = Math.round((currentOvers % 1) * 10);
   const completedOvers = Math.floor(currentOvers);
@@ -286,6 +305,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Start server
 app.listen(port, () => {
   console.log(`\nServer running on port ${port}`);
   console.log(`Admin Setup: http://localhost:${port}/admin`);

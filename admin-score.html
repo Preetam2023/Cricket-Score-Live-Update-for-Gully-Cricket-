@@ -104,10 +104,26 @@
             background: #ecf0f1;
             border-radius: 5px;
         }
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .target-display {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <h1>Score Control</h1>
+    <div class="header-container">
+        <h1>Score Control</h1>
+        <div class="target-display" id="targetDisplay">Target: - </div>
+    </div>
     
     <div class="match-info" id="matchInfo">
         Loading match info...
@@ -158,6 +174,16 @@
                             `${data.current_runs} - ${data.current_wickets}`;
                         document.getElementById('currentOvers').textContent = 
                             `${data.current_overs.toFixed(1)} / ${data.total_overs} overs`;
+                       
+                            // Update target display
+                        const targetDisplay = document.getElementById('targetDisplay');
+                        if (data.batting_phase === 'first') {
+                            targetDisplay.textContent = 'First Innings';
+                        } else if (data.target_score) {
+                            targetDisplay.textContent = `Target: ${data.target_score}`;
+                        } else {
+                            targetDisplay.textContent = 'Target: -';
+                        }
                             
                         // Update this over display
                         const thisOver = data.this_over ? data.this_over.split(',') : [];

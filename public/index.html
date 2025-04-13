@@ -4,186 +4,447 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cricket Live Score</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Open+Sans&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
     <style>
+        :root {
+            --primary: #ff4757;
+            --secondary: #1e90ff;
+            --dark: #2f3542;
+            --light: #f1f2f6;
+            --success: #2ed573;
+            --warning: #ffa502;
+            --normal: #ffffff;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: 'Open Sans', sans-serif;
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            background: url('https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            position: relative;
+            padding: 20px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: -1;
+        }
+        
+        .container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
-            text-align: center;
-            background-color: #f5f5f5;
+            background: rgba(47, 53, 66, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .live-badge {
+            background: var(--primary);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 15px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
         }
         
         .match-title {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
+            font-size: 38px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         
         .toss-info {
-            font-size: 14px;
-            color: #555;
+            font-size: 24px;
+            color: var(--light);
+            margin-bottom: 25px;
+            opacity: 0.9;
+        }
+        
+        .score-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
             margin-bottom: 20px;
         }
         
-        .live-score-title {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 24px;
-            color: #e74c3c;
-            margin: 25px 0 15px 0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
         .score-box {
-            background: linear-gradient(135deg, #ffffff, #f9f9f9);
+            background: rgba(30, 144, 255, 0.1);
             border-radius: 10px;
             padding: 20px;
-            margin: 0 auto;
             width: 70%;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .score-box::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: var(--secondary);
+        }
+        
+        .target-box {
+            background: rgba(255, 71, 87, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            width: 25%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .target-label {
+            font-size: 20px;
+            color: var(--light);
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .target-value {
+            font-size: 40px;
+            font-weight: 700;
+            color: var(--primary);
         }
         
         .batting-team {
-            font-size: 22px;
-            font-weight: bold;
-            color: #2c3e50;
-            margin-bottom: 10px;
+            font-size: 20px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 15px;
         }
         
-        .score {
-            font-size: 36px;
-            font-weight: bold;
-            color: #e74c3c;
-            margin: 5px 0;
+        .score-display {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 5px;
+        }
+        
+        .runs {
+            font-size: 70px;
+            font-weight: 800;
+            color: white;
+            margin-right: 10px;
+        }
+        
+        .wickets {
+            font-size: 70px;
+            font-weight: 700;
+            color: var(--light);
+            opacity: 0.8;
         }
         
         .overs {
             font-size: 18px;
-            color: #7f8c8d;
+            color: var(--light);
+            opacity: 0.8;
+            margin-bottom: 15px;
         }
         
-        .this-over {
+        .this-over-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 12px;
             margin-top: 15px;
-            font-size: 16px;
         }
-        .this-over span {
-            display: inline-block;
-            margin: 0 3px;
-            font-weight: bold;
+        
+        .this-over-label {
+            font-size: 14px;
+            color: var(--light);
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+        
+        .balls-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px; /* reduced from 12px for better spacing */
+            font-size: 18px;
+            flex-wrap: wrap;
+        }
+        
+        .ball {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-weight: 700;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: black;
+            font-size: 14px;
+        }
+        
+        .ball-0, .ball-1, .ball-2, .ball-3 {
+            background-color: white;
+            color: black;
+        }
+        
+        .ball-4 {
+            background-color: #1e90ff;
+            color: white;
+        }
+        
+        .ball-6 {
+            background-color: #2ed573;
+            color: rgb(0, 0, 0);
+        }
+        
+        .ball-W {
+            background-color: #ff4757;
+            color: white;
+        }
+        
+        .ball-WD, .ball-NB {
+            background-color: #ffa502;
+            color: black;
         }
         
         .last-updated {
-            margin-top: 25px;
             font-size: 12px;
-            color: #95a5a6;
+            color: var(--light);
+            opacity: 0.6;
+            text-align: right;
+            margin-top: 15px;
             font-style: italic;
         }
         
         .refresh-btn {
-            padding: 10px 25px;
-            background-color: #3498db;
+            background: var(--secondary);
             color: white;
             border: none;
-            border-radius: 5px;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 14px;
-            margin-top: 25px;
-            transition: background-color 0.3s;
+            display: block;
+            margin: 25px auto 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
         }
         
         .refresh-btn:hover {
-            background-color: #2980b9;
+            background: #1a7fd8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(30, 144, 255, 0.4);
         }
         
         .vs {
-            color: #e74c3c;
+            color: var(--primary);
             font-weight: bold;
-            margin: 0 5px;
+            margin: 0 10px;
         }
     </style>
 </head>
 <body>
-    <div class="match-title">
-        <span id="team1-name">Team 1</span> 
-        <span class="vs">VS</span> 
-        <span id="team2-name">Team 2</span>
-    </div>
-    
-    <div class="toss-info" id="toss-info">
-        Toss Winner: Loading... | chose to bat
-    </div>
-    
-    <div class="live-score-title">Live Score</div>
-    
-    <div class="score-box">
-        <div class="batting-team" id="current-batting-team">Loading...</div>
-        <div class="score" id="current-score">0 - 0</div>
-        <div class="overs" id="current-overs">0.0/0 overs</div>
-        <div class="this-over">
-            This over: <span id="this-over-display"></span>
+    <div class="container">
+        <div class="live-badge">LIVE</div>
+        
+        <div class="match-title">
+            <span id="team1-name">Team 1</span> 
+            <span class="vs">VS</span> 
+            <span id="team2-name">Team 2</span>
         </div>
+        
+        <div class="toss-info" id="toss-info">
+            Toss Winner: Loading... | Chose to Loading...
+        </div>
+        
+        <div class="score-container">
+            <div class="score-box">
+                <div class="batting-team" id="current-batting-team">Loading...</div>
+                
+                <div class="score-display">
+                    <div class="runs" id="current-runs">0</div>
+                    <div class="wickets" id="current-wickets">- 0</div>
+                </div>
+                
+                <div class="overs" id="current-overs">0.0 / 0 overs</div>
+                
+                <div class="this-over-container">
+                    <div class="this-over-label">THIS OVER</div>
+                    <div class="balls-container" id="this-over-display"></div>
+                </div>
+            </div>
+            
+            <div class="target-box">
+                <div class="target-label">TARGET</div>
+                <div class="target-value" id="target-display">-</div>
+            </div>
+        </div>
+        
+        <div class="last-updated" id="last-updated">Last updated: Just now</div>
+        <button class="refresh-btn" onclick="fetchScore()">Refresh Score</button>
     </div>
-    
-    <div class="last-updated" id="last-updated">Last updated: Just now</div>
-    <button class="refresh-btn" onclick="fetchScore()">Refresh</button>
 
     <script>
+        function formatBall(ball) {
+            // Skip empty values and over separator
+            if (!ball || ball === '||') return '';
+            
+            // Trim any whitespace
+            ball = ball.trim();
+            
+            // Determine the class based on ball value
+            let ballClass = 'ball';
+            if (ball === 'W') ballClass += ' ball-W';
+            else if (ball === 'WD') ballClass += ' ball-WD';
+            else if (ball === 'NB') ballClass += ' ball-NB';
+            else if (ball === '4') ballClass += ' ball-4';
+            else if (ball === '6') ballClass += ' ball-6';
+            else if (['0','1','2','3'].includes(ball)) ballClass += ` ball-${ball}`;
+            else ballClass += ' ball-0'; // default case
+            
+            return `<div class="${ballClass}">${ball}</div>`;
+        }
+    
         function formatTime(date) {
             const now = new Date();
-            const diff = Math.floor((now - date) / 1000); // difference in seconds
+            const diff = Math.floor((now - date) / 1000);
             
             if (diff < 10) return 'Just now';
             if (diff < 60) return `${diff} seconds ago`;
             if (diff < 3600) return `${Math.floor(diff/60)} minutes ago`;
             return date.toLocaleTimeString();
         }
-
-        function fetchScore() {
-            fetch('/api/score')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.team1) {
-                        // Update match title
-                        document.getElementById('team1-name').textContent = data.team1;
-                        document.getElementById('team2-name').textContent = data.team2;
-                        
-                        // Update toss information
-                        const tossWinner = data.toss_winner === 'team1' ? data.team1 : data.team2;
-                        const tossDecision = data.toss_decision === 'bat' ? 'chose to bat' : 'chose to bowl';
-                        document.getElementById('toss-info').textContent = 
-                            `Toss Winner: ${tossWinner} | ${tossDecision}`;
-                        
-                        // Update current batting team and score
-                        const battingTeam = data.current_batting == 1 ? data.team1 : data.team2;
-                        document.getElementById('current-batting-team').textContent = battingTeam;
-                        document.getElementById('current-score').textContent = 
-                            `${data.current_runs} - ${data.current_wickets}`;
-                        document.getElementById('current-overs').textContent = 
-                            `${data.current_overs.toFixed(1)}/${data.total_overs} overs`;
-                        
-                        // Update this over display
-                        const thisOver = data.this_over ? data.this_over.split(',') : [];
-                        document.getElementById('this-over-display').innerHTML = 
-                            thisOver.map(ball => `<span>${ball}</span>`).join(' ');
-                        
-                        // Update timestamp
-                        if (data.last_updated) {
-                            const date = new Date(data.last_updated);
-                            document.getElementById('last-updated').textContent = 
-                                `Last updated: ${formatTime(date)}`;
+    
+        function updateUI(data) {
+            if (data.team1) {
+                // Update match title
+                document.getElementById('team1-name').textContent = data.team1;
+                document.getElementById('team2-name').textContent = data.team2;
+                
+                // Update toss information
+                const tossWinner = data.toss_winner === 'team1' ? data.team1 : data.team2;
+                const tossDecision = data.toss_decision === 'bat' ? 'Chose to Batting' : 'Chose to Bowling';
+                document.getElementById('toss-info').textContent = 
+                    `Toss Winner: ${tossWinner} | ${tossDecision}`;
+                
+                // Update current batting team and score
+                const battingTeam = data.current_batting == 1 ? data.team1 : data.team2;
+                document.getElementById('current-batting-team').textContent = battingTeam;
+                document.getElementById('current-runs').textContent = data.current_runs;
+                document.getElementById('current-wickets').textContent = `- ${data.current_wickets}`;
+                document.getElementById('current-overs').textContent = 
+                    `${data.current_overs.toFixed(1)} / ${data.total_overs} overs`;
+                
+                // Update target display
+                const targetDisplay = document.getElementById('target-display');
+                if (data.batting_phase === 'first') {
+                    targetDisplay.textContent = 'First Batting';
+                } else if (data.target_score) {
+                    targetDisplay.textContent = data.target_score;
+                }
+                
+                // Update this over display
+                const thisOverContainer = document.getElementById('this-over-display');
+                let currentOverBalls = [];
+                
+                if (data.this_over) {
+                    // Handle different formats of this_over data
+                    if (Array.isArray(data.this_over)) {
+                        // If it's already an array
+                        currentOverBalls = data.this_over;
+                    } else if (typeof data.this_over === 'string') {
+                        // If it's a string with commas: "0,1,4,1,6,W"
+                        if (data.this_over.includes(',')) {
+                            currentOverBalls = data.this_over.split(',');
+                        } 
+                        // If it's a string with spaces: "0 1 4 1 6 W"
+                        else if (data.this_over.includes(' ')) {
+                            currentOverBalls = data.this_over.split(' ');
+                        }
+                        // If it's a continuous string: "01416W"
+                        else {
+                            currentOverBalls = data.this_over.split('');
                         }
                     }
-                })
+                    
+                    // Clean up the balls array
+                    currentOverBalls = currentOverBalls
+                        .map(ball => ball.toString().trim())
+                        .filter(ball => ball && ball !== '||' && ball !== ',');
+                }
+                
+                // Clear previous content and add new balls
+                thisOverContainer.innerHTML = '';
+                currentOverBalls.forEach(ball => {
+                    if (ball) {
+                        thisOverContainer.innerHTML += formatBall(ball);
+                    }
+                });
+                   
+                // Update timestamp
+                if (data.last_updated) {
+                    const date = new Date(data.last_updated);
+                    document.getElementById('last-updated').textContent = 
+                        `Last updated: ${formatTime(date)}`;
+                }
+            }
+        }
+    
+        function fetchScore() {
+            // For testing purposes, you can uncomment this block
+            /*
+            const testData = {
+                team1: "INDIA",
+                team2: "AUSTRALIA",
+                toss_winner: "team1",
+                toss_decision: "bat",
+                current_batting: 1,
+                current_runs: 156,
+                current_wickets: 2,
+                current_overs: 23.4,
+                total_overs: 50,
+                batting_phase: "first",
+                this_over: "0,1,4,6,W",  // Test with different formats
+                last_updated: new Date().toISOString()
+            };
+            updateUI(testData);
+            return;
+            */
+            
+            fetch('/api/score')
+                .then(response => response.json())
+                .then(data => updateUI(data))
                 .catch(error => console.error('Error:', error));
         }
-
+    
         // Fetch score every 5 seconds
-        setInterval(fetchScore, 5000);
+        setInterval(fetchScore, 3000);
         fetchScore(); // Initial load
     </script>
 </body>
