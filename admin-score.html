@@ -367,18 +367,26 @@
         }
         
         function updateScore(action, additionalRuns = null) {
-            if (!action) return;
-            
+            // Prepare payload based on action type
             const payload = {
-                action: action.toString() // Ensure action is string
+                action: action.toString()
             };
-            
+        
+            // Handle special cases
             if (action === 'NB' && additionalRuns !== null) {
-                payload.additionalRuns = parseInt(additionalRuns);
+                payload.nbAdditionalRuns = parseInt(additionalRuns);
+                payload.displayText = `NB+${additionalRuns}`;
+            } else if (action === 'custom') {
+                const customRun = document.getElementById('customRun').value;
+                if (!customRun || isNaN(customRun)) {
+                    alert('Please enter a valid run value');
+                    return;
+                }
+                payload.customRun = customRun;
             }
-            
+        
             console.log("Sending update:", payload);
-            
+        
             fetch('/api/update-score', {
                 method: 'POST',
                 headers: {
@@ -386,25 +394,34 @@
                 },
                 body: JSON.stringify(payload)
             })
-            .then(response => {
+            .then(async response => {
+                const data = await response.json();
                 if (!response.ok) {
-                    return response.json().then(err => {
-                        throw new Error(err.message || 'Update failed');
-                    });
+                    throw new Error(data.error || 'Update failed');
                 }
-                return response.json();
+                return data;
             })
             .then(data => {
-                console.log("Update response:", data);
-                if (data.success) {
-                    fetchMatchInfo(); // Refresh data
-                } else {
-                    alert('Update failed: ' + (data.message || 'Unknown error'));
+                console.log("Update successful:", data);
+                // Update UI immediately
+                if (data.currentRuns !== undefined) {
+                    document.getElementById('currentScore').textContent = 
+                        `${data.currentRuns} - ${data.currentWickets}`;
+                }
+                if (data.currentOvers !== undefined) {
+                    document.getElementById('currentOvers').textContent = 
+                        `${data.currentOvers} / ${data.totalOvers} overs`;
+                }
+                if (data.thisOver !== undefined) {
+                    document.getElementById('thisOverDisplay').innerHTML = 
+                        data.thisOver.split(',').filter(Boolean).map(ball => 
+                            `<span class="ball-${ball.trim()}">${ball.trim()}</span>`
+                        ).join(' ');
                 }
             })
             .catch(error => {
-                console.error('Error updating score:', error);
-                alert('Error updating score: ' + error.message);
+                console.error('Update error:', error);
+                alert(`Update failed: ${error.message}`);
             });
         }
         

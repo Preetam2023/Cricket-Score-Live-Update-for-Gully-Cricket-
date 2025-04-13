@@ -217,53 +217,107 @@ app.post('/api/setup', async (req, res) => {
 
 // Score update API
 app.post('/api/update-score', async (req, res) => {
-  try {
-    const { action, customRun, nbAdditionalRuns, displayText } = req.body;
-
-    if (!action) {
-      throw new Error('Action is required');
+    try {
+      const { action, customRun, nbAdditionalRuns, displayText } = req.body;
+  
+      if (!action) {
+        throw new Error('Action is required');
+      }
+  
+      const match = await Match.findOne({
+        order: [['id', 'DESC']]
+      });
+      
+      if (!match) throw new Error("Match not initialized");
+  
+      let { currentRuns, currentWickets, currentOvers, thisOver, totalOvers } = match;
+      let overHistory = thisOver ? thisOver.split(',') : [];
+  
+      // Process the action
+      let runsToAdd = 0;
+      let wicketToAdd = 0;
+      let ballsToAdd = 0;
+      let overEntry = '';
+  
+      // Handle different actions
+      switch (action) {
+        case 'NB':
+          runsToAdd = 1 + (nbAdditionalRuns || 0);
+          overEntry = displayText || 'NB';
+          break;
+        case 'WD':
+          runsToAdd = 1;
+          overEntry = 'WD';
+          break;
+        case 'W':
+          wicketToAdd = 1;
+          overEntry = 'W';
+          ballsToAdd = 1;
+          break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '6':
+          runsToAdd = parseInt(action);
+          overEntry = action;
+          ballsToAdd = 1;
+          break;
+        case 'custom':
+          if (!customRun || isNaN(customRun)) {
+            throw new Error('Invalid custom run value');
+          }
+          runsToAdd = parseInt(customRun);
+          overEntry = customRun;
+          ballsToAdd = 1;
+          break;
+        default:
+          throw new Error('Invalid action');
+      }
+  
+      // Update match data
+      currentRuns += runsToAdd;
+      currentWickets += wicketToAdd;
+      
+      // Handle over progression (6 balls = 1 over)
+      if (ballsToAdd > 0) {
+        const [overs, balls] = currentOvers.toString().split('.').map(Number);
+        const newBalls = (balls || 0) + ballsToAdd;
+        currentOvers = overs + Math.floor(newBalls / 6) + (newBalls % 6) * 0.1;
+      }
+  
+      // Update over history
+      if (overEntry) {
+        overHistory.push(overEntry);
+      }
+  
+      // Save updated match
+      await match.update({
+        currentRuns,
+        currentWickets,
+        currentOvers,
+        thisOver: overHistory.join(',')
+      });
+  
+      // Return updated score
+      res.json({ 
+        success: true,
+        currentRuns,
+        currentWickets,
+        currentOvers: parseFloat(currentOvers.toFixed(1)),
+        thisOver: overHistory.join(','),
+        totalOvers,
+        message: 'Score updated successfully'
+      });
+  
+    } catch (error) {
+      console.error('Score update failed:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
     }
-
-    const match = await Match.findOne({
-      order: [['id', 'DESC']]
-    });
-    
-    if (!match) throw new Error("Match not initialized");
-
-    let { currentRuns, currentWickets, currentOvers, thisOver } = match;
-    let overHistory = thisOver ? thisOver.split(',') : [];
-
-    // Process action (keep your existing function)
-    const result = processScoreAction(
-      action,
-      customRun,
-      currentRuns,
-      currentWickets,
-      currentOvers,
-      overHistory,
-      nbAdditionalRuns,
-      displayText
-    );
-
-    await match.update({
-      currentRuns: result.runs,
-      currentWickets: result.wickets,
-      currentOvers: result.overs,
-      thisOver: result.overHistory.join(',')
-    });
-
-    res.json({ 
-      success: true,
-      ...result
-    });
-  } catch (error) {
-    console.error('Score update failed:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+  });
 
 // Set winner API
 app.post('/api/set-winner', async (req, res) => {
