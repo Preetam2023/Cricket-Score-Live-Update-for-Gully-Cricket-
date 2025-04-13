@@ -229,87 +229,155 @@
     <script>
         let nbActive = false;
         
+        // DOM elements cache
+        const domElements = {
+            matchInfo: document.getElementById('matchInfo'),
+            battingTeam: document.getElementById('battingTeam'),
+            currentScore: document.getElementById('currentScore'),
+            currentOvers: document.getElementById('currentOvers'),
+            targetDisplay: document.getElementById('targetDisplay'),
+            thisOverDisplay: document.getElementById('thisOverDisplay'),
+            nbButton: document.getElementById('nbButton'),
+            nbRunButtons: document.getElementById('nbRunButtons'),
+            winnerModal: document.getElementById('winnerModal'),
+            winnerTeam: document.getElementById('winnerTeam'),
+            winMargin: document.getElementById('winMargin'),
+            winType: document.getElementById('winType'),
+            customRun: document.getElementById('customRun')
+        };
+    
+        // Initialize event listeners
+        function initializeEventListeners() {
+            // Run buttons
+            document.querySelectorAll('.run-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const runs = this.getAttribute('data-runs');
+                    if (runs) {
+                        handleRunButton(runs);
+                    }
+                });
+            });
+    
+            // Custom run button
+            const customRunBtn = document.getElementById('customRunBtn');
+            if (customRunBtn) {
+                customRunBtn.addEventListener('click', function() {
+                    const customRun = domElements.customRun?.value;
+                    if (!customRun || isNaN(customRun)) {
+                        alert('Please enter a valid run value');
+                        return;
+                    }
+                    updateScore(customRun);
+                });
+            }
+    
+            // NB button
+            if (domElements.nbButton) {
+                domElements.nbButton.addEventListener('click', handleNbButton);
+            }
+        }
+    
         function fetchMatchInfo() {
             fetch('/api/score')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
                 .then(data => {
-                    console.log("Received data:", data); // Debug log
+                    console.log("Received data:", data);
                     if (data) {
-                        // Update match info
-                        document.getElementById('matchInfo').innerHTML = `
-                            <strong>${data.team1}</strong> vs <strong>${data.team2}</strong> | 
-                            Toss: ${data.tossWinner === 'team1' ? data.team1 : data.team2} ${data.tossDecision === 'bat' ? 'bat' : 'bowl'}
-                        `;
-                        
-                        // Update score display
-                        const battingTeam = data.currentBatting == 1 ? data.team1 : data.team2;
-                        document.getElementById('battingTeam').textContent = battingTeam;
-                        document.getElementById('currentScore').textContent = 
-                            `${data.currentRuns} - ${data.currentWickets}`;
-                        document.getElementById('currentOvers').textContent = 
-                            `${parseFloat(data.currentOvers).toFixed(1)} / ${data.totalOvers} overs`;
-                       
-                        // Update target display
-                        const targetDisplay = document.getElementById('targetDisplay');
-                        if (data.battingPhase === 'first') {
-                            targetDisplay.textContent = 'First Innings';
-                        } else if (data.targetScore) {
-                            targetDisplay.textContent = `Target: ${data.targetScore}`;
-                        } else {
-                            targetDisplay.textContent = 'Target: -';
-                        }
-                            
-                        // Update this over display
-                        const thisOver = data.thisOver || '';
-                        document.getElementById('thisOverDisplay').innerHTML = 
-                            thisOver.split(',').filter(Boolean).map(ball => 
-                                `<span class="ball-${ball.trim()}">${ball.trim()}</span>`
-                            ).join(' ');
+                        updateUI(data);
                     }
                 })
                 .catch(error => {
                     console.error('Error fetching match info:', error);
-                    document.getElementById('matchInfo').innerHTML = 'Error loading match data';
+                    if (domElements.matchInfo) {
+                        domElements.matchInfo.innerHTML = 'Error loading match data';
+                    }
                 });
+        }
+    
+        function updateUI(data) {
+            if (!data) return;
+    
+            // Update match info
+            if (domElements.matchInfo) {
+                domElements.matchInfo.innerHTML = `
+                    <strong>${data.team1 || 'Team 1'}</strong> vs <strong>${data.team2 || 'Team 2'}</strong> | 
+                    Toss: ${data.tossWinner === 'team1' ? data.team1 : data.team2} ${data.tossDecision === 'bat' ? 'bat' : 'bowl'}
+                `;
+            }
+            
+            // Update score display
+            const battingTeam = data.currentBatting == 1 ? data.team1 : data.team2;
+            if (domElements.battingTeam) domElements.battingTeam.textContent = battingTeam;
+            if (domElements.currentScore) {
+                domElements.currentScore.textContent = `${data.currentRuns || 0} - ${data.currentWickets || 0}`;
+            }
+            if (domElements.currentOvers) {
+                domElements.currentOvers.textContent = 
+                    `${parseFloat(data.currentOvers || 0).toFixed(1)} / ${data.totalOvers || 0} overs`;
+            }
+           
+            // Update target display
+            if (domElements.targetDisplay) {
+                if (data.battingPhase === 'first') {
+                    domElements.targetDisplay.textContent = 'First Innings';
+                } else if (data.targetScore) {
+                    domElements.targetDisplay.textContent = `Target: ${data.targetScore}`;
+                } else {
+                    domElements.targetDisplay.textContent = 'Target: -';
+                }
+            }
+                
+            // Update this over display
+            if (domElements.thisOverDisplay) {
+                const thisOver = data.thisOver || '';
+                domElements.thisOverDisplay.innerHTML = 
+                    thisOver.split(',').filter(Boolean).map(ball => 
+                        `<span class="ball-${ball.trim()}">${ball.trim()}</span>`
+                    ).join(' ');
+            }
         }
         
         function handleNbButton() {
             nbActive = !nbActive;
-            const nbButton = document.getElementById('nbButton');
-            const nbRunButtons = document.getElementById('nbRunButtons');
-            
-            if (nbActive) {
-                nbButton.classList.add('nb-active');
-                nbRunButtons.style.display = 'grid';
-            } else {
-                nbButton.classList.remove('nb-active');
-                nbRunButtons.style.display = 'none';
+            if (domElements.nbButton) {
+                domElements.nbButton.classList.toggle('nb-active', nbActive);
+            }
+            if (domElements.nbRunButtons) {
+                domElements.nbRunButtons.style.display = nbActive ? 'grid' : 'none';
             }
         }
         
         function handleNbRun(runs) {
-            updateScore('NB', runs);
-            handleNbButton(); // Turn off NB mode after selection
+            if (!runs) return;
+            updateScore('NB', parseInt(runs));
+            handleNbButton();
         }
         
         function handleRunButton(runs) {
+            if (!runs) return;
+            
             if (nbActive) {
                 handleNbRun(runs);
             } else {
-                updateScore(runs.toString());
+                updateScore(runs);
             }
         }
         
         function updateScore(action, additionalRuns = null) {
+            if (!action) return;
+            
             const payload = {
-                action: action
+                action: action.toString() // Ensure action is string
             };
             
             if (action === 'NB' && additionalRuns !== null) {
                 payload.additionalRuns = parseInt(additionalRuns);
             }
             
-            console.log("Sending update:", payload); // Debug log
+            console.log("Sending update:", payload);
             
             fetch('/api/update-score', {
                 method: 'POST',
@@ -320,47 +388,54 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Update failed');
+                    return response.json().then(err => {
+                        throw new Error(err.message || 'Update failed');
+                    });
                 }
                 return response.json();
             })
             .then(data => {
-                console.log("Update response:", data); // Debug log
+                console.log("Update response:", data);
                 if (data.success) {
-                    // Force immediate refresh after update
-                    fetchMatchInfo();
+                    fetchMatchInfo(); // Refresh data
                 } else {
                     alert('Update failed: ' + (data.message || 'Unknown error'));
                 }
             })
             .catch(error => {
                 console.error('Error updating score:', error);
-                alert('Error updating score. Please check console for details.');
+                alert('Error updating score: ' + error.message);
             });
         }
         
         function showWinnerModal() {
-            document.getElementById('winnerModal').style.display = 'flex';
-            fetch('/api/score')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.team1 && data.team2) {
-                        document.getElementById('winnerTeam').innerHTML = `
-                            <option value="team1">${data.team1}</option>
-                            <option value="team2">${data.team2}</option>
-                        `;
-                    }
-                });
+            if (domElements.winnerModal) {
+                domElements.winnerModal.style.display = 'flex';
+                fetch('/api/score')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.team1 && data.team2 && domElements.winnerTeam) {
+                            domElements.winnerTeam.innerHTML = `
+                                <option value="team1">${data.team1}</option>
+                                <option value="team2">${data.team2}</option>
+                            `;
+                        }
+                    });
+            }
         }
         
         function hideWinnerModal() {
-            document.getElementById('winnerModal').style.display = 'none';
+            if (domElements.winnerModal) {
+                domElements.winnerModal.style.display = 'none';
+            }
         }
         
         function submitWinner() {
-            const winningTeam = document.getElementById('winnerTeam').value;
-            const winMargin = document.getElementById('winMargin').value;
-            const winType = document.getElementById('winType').value;
+            if (!domElements.winnerTeam || !domElements.winMargin || !domElements.winType) return;
+            
+            const winningTeam = domElements.winnerTeam.value;
+            const winMargin = domElements.winMargin.value;
+            const winType = domElements.winType.value;
             
             if (!winMargin || isNaN(winMargin) || winMargin < 1) {
                 alert('Please enter a valid positive margin');
@@ -399,24 +474,18 @@
             });
         }
         
-        // Initialize
+        // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            // Add event listeners to all run buttons
-            document.querySelectorAll('.run-btn').forEach(button => {
-                button.addEventListener('click', function() {
-                    handleRunButton(this.dataset.runs);
-                });
-            });
+            initializeEventListeners();
             
-            // Add event listener to custom run button
-            document.getElementById('customRunBtn').addEventListener('click', function() {
-                const customRun = document.getElementById('customRun').value;
-                if (!customRun || isNaN(customRun)) {
-                    alert('Please enter a valid run value');
-                    return;
-                }
-                updateScore(customRun);
-            });
+            // Add winner modal buttons if they exist
+            const declareWinnerBtn = document.getElementById('declareWinnerBtn');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            const submitWinnerBtn = document.getElementById('submitWinnerBtn');
+            
+            if (declareWinnerBtn) declareWinnerBtn.addEventListener('click', showWinnerModal);
+            if (closeModalBtn) closeModalBtn.addEventListener('click', hideWinnerModal);
+            if (submitWinnerBtn) submitWinnerBtn.addEventListener('click', submitWinner);
             
             // Initial load
             fetchMatchInfo();
