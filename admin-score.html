@@ -233,38 +233,56 @@
             fetch('/api/score')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.team1) {
-                        // Update match info
+                    if (data) {
+                        // Update match info - handle both field naming conventions
+                        const team1 = data.team1 || 'Team 1';
+                        const team2 = data.team2 || 'Team 2';
+                        const tossWinner = data.tossWinner || data.toss_winner || 'team1';
+                        const tossDecision = data.tossDecision || data.toss_decision || 'bat';
+                        
                         document.getElementById('matchInfo').innerHTML = `
-                            <strong>${data.team1}</strong> vs <strong>${data.team2}</strong> | 
-                            Toss: ${data.toss_winner === 'team1' ? data.team1 : data.team2} ${data.toss_decision === 'bat' ? 'bat' : 'bowl'}
+                            <strong>${team1}</strong> vs <strong>${team2}</strong> | 
+                            Toss: ${tossWinner === 'team1' ? team1 : team2} ${tossDecision === 'bat' ? 'bat' : 'bowl'}
                         `;
                         
                         // Update score display
-                        const battingTeam = data.current_batting == 1 ? data.team1 : data.team2;
+                        const currentBatting = data.currentBatting || data.current_batting || 1;
+                        const battingTeam = currentBatting == 1 ? team1 : team2;
                         document.getElementById('battingTeam').textContent = battingTeam;
+                        
+                        const currentRuns = data.currentRuns || data.current_runs || 0;
+                        const currentWickets = data.currentWickets || data.current_wickets || 0;
                         document.getElementById('currentScore').textContent = 
-                            `${data.current_runs} - ${data.current_wickets}`;
+                            `${currentRuns} - ${currentWickets}`;
+                        
+                        const currentOvers = data.currentOvers || data.current_overs || 0;
+                        const totalOvers = data.totalOvers || data.total_overs || 0;
                         document.getElementById('currentOvers').textContent = 
-                            `${data.current_overs.toFixed(1)} / ${data.total_overs} overs`;
+                            `${parseFloat(currentOvers).toFixed(1)} / ${totalOvers} overs`;
                        
                         // Update target display
                         const targetDisplay = document.getElementById('targetDisplay');
-                        if (data.batting_phase === 'first') {
+                        const battingPhase = data.battingPhase || data.batting_phase || 'first';
+                        const targetScore = data.targetScore || data.target_score;
+                        
+                        if (battingPhase === 'first') {
                             targetDisplay.textContent = 'First Innings';
-                        } else if (data.target_score) {
-                            targetDisplay.textContent = `Target: ${data.target_score}`;
+                        } else if (targetScore) {
+                            targetDisplay.textContent = `Target: ${targetScore}`;
                         } else {
                             targetDisplay.textContent = 'Target: -';
                         }
                             
                         // Update this over display
-                        const thisOver = data.this_over ? data.this_over.split(',') : [];
+                        const thisOver = (data.thisOver || data.this_over || '').toString();
                         document.getElementById('thisOverDisplay').innerHTML = 
-                            thisOver.map(ball => `<span>${ball}</span>`).join('');
+                            thisOver.split(',').map(ball => `<span>${ball}</span>`).join('');
                     }
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error fetching match info:', error);
+                    document.getElementById('matchInfo').innerHTML = 'Error loading match data';
+                });
         }
         
         function handleNbButton() {

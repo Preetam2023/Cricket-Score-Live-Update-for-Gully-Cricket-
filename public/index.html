@@ -503,46 +503,46 @@
     
         function updateUI(data) {
             // First check if we have valid data
-            if (!data || !data.team1) {
-                console.error('Invalid data received:', data);
+            if (!data) {
+                console.error('No data received');
                 return;
             }
         
             // Map API fields to frontend expected fields
             const mappedData = {
-                team1: data.team1,
-                team2: data.team2,
-                total_overs: data.totalOvers,
-                toss_winner: data.tossWinner,
-                toss_decision: data.tossDecision,
-                current_batting: data.currentBatting,
-                batting_phase: data.battingPhase,
-                target_score: data.targetScore,
-                current_runs: data.currentRuns,
-                current_wickets: data.currentWickets,
-                current_overs: data.currentOvers,
-                this_over: data.thisOver,
-                last_updated: data.last_updated,
-                match_status: data.matchStatus
+                team1: data.team1 || 'Team 1',
+                team2: data.team2 || 'Team 2',
+                total_overs: data.totalOvers || data.total_overs || 0,
+                toss_winner: data.tossWinner || data.toss_winner || 'team1',
+                toss_decision: data.tossDecision || data.toss_decision || 'bat',
+                current_batting: data.currentBatting || data.current_batting || 1,
+                batting_phase: data.battingPhase || data.batting_phase || 'first',
+                target_score: data.targetScore || data.target_score || 0,
+                current_runs: data.currentRuns || data.current_runs || 0,
+                current_wickets: data.currentWickets || data.current_wickets || 0,
+                current_overs: data.currentOvers || data.current_overs || 0,
+                this_over: data.thisOver || data.this_over || '',
+                last_updated: data.last_updated || new Date().toISOString(),
+                match_status: data.matchStatus || data.match_status || 'in_progress'
             };
         
             // Now use the mapped data
-            document.getElementById('team1-name').textContent = mappedData.team1 || 'Team 1';
-            document.getElementById('team2-name').textContent = mappedData.team2 || 'Team 2';
+            document.getElementById('team1-name').textContent = mappedData.team1;
+            document.getElementById('team2-name').textContent = mappedData.team2;
             
             const tossWinner = mappedData.toss_winner === 'team1' ? mappedData.team1 : mappedData.team2;
             const tossDecision = mappedData.toss_decision === 'bat' ? 'Chose to Batting' : 'Chose to Bowling';
             document.getElementById('toss-info').textContent = 
-                `Toss Winner : ${tossWinner || 'Loading...'} | ${tossDecision || 'Loading...'}`;
+                `Toss Winner : ${tossWinner} | ${tossDecision}`;
             
             const battingTeam = mappedData.current_batting == 1 ? mappedData.team1 : mappedData.team2;
-            document.getElementById('current-batting-team').textContent = battingTeam || 'Loading...';
+            document.getElementById('current-batting-team').textContent = battingTeam;
             
-            document.getElementById('current-runs').textContent = mappedData.current_runs || 0;
-            document.getElementById('current-wickets').textContent = `- ${mappedData.current_wickets || 0}`;
+            document.getElementById('current-runs').textContent = mappedData.current_runs;
+            document.getElementById('current-wickets').textContent = `- ${mappedData.current_wickets}`;
             
-            const currentOvers = mappedData.current_overs ? parseFloat(mappedData.current_overs) : 0;
-            const totalOvers = mappedData.total_overs ? parseFloat(mappedData.total_overs) : 0;
+            const currentOvers = parseFloat(mappedData.current_overs) || 0;
+            const totalOvers = parseFloat(mappedData.total_overs) || 0;
             document.getElementById('current-overs').textContent = 
                 `${currentOvers.toFixed(1)} / ${totalOvers} overs`;
             
@@ -592,13 +592,22 @@
     
         function fetchScore() {
             fetch('/api/score')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.team1) {
-                        updateUI(data);
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
                     }
+                    return response.json();
                 })
-                .catch(error => console.error('Error:', error));
+                .then(data => {
+                    console.log('API Response:', data); // Debug log
+                    updateUI(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching score:', error);
+                    // Display error to user
+                    document.getElementById('current-runs').textContent = 'Error';
+                    document.getElementById('last-updated').textContent = 'Failed to load data';
+                });
         }
         
         function checkResult() {
