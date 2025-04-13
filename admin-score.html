@@ -81,6 +81,10 @@
             background-color: #f39c12;
             color: white;
         }
+        .nb-active {
+            background-color: #9b59b6;
+            color: white;
+        }
         .custom-container {
             margin-top: 20px;
         }
@@ -117,6 +121,27 @@
             border-radius: 5px;
             font-weight: bold;
         }
+        .nb-run-buttons {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .nb-run-btn {
+            padding: 10px;
+            background-color: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .winner-btn {
+            background-color: #27ae60 !important;
+            color: white;
+            width: 100%;
+            padding: 15px !important;
+            font-size: 18px !important;
+        }
     </style>
 </head>
 <body>
@@ -139,23 +164,71 @@
     </div>
     
     <div class="button-container">
-        <button class="action-btn run-btn" onclick="updateScore('0')">0</button>
-        <button class="action-btn run-btn" onclick="updateScore('1')">1</button>
-        <button class="action-btn run-btn" onclick="updateScore('2')">2</button>
-        <button class="action-btn run-btn" onclick="updateScore('3')">3</button>
-        <button class="action-btn run-btn" onclick="updateScore('4')">4</button>
-        <button class="action-btn run-btn" onclick="updateScore('6')">6</button>
+        <button class="action-btn run-btn" onclick="handleRunButton('0')">0</button>
+        <button class="action-btn run-btn" onclick="handleRunButton('1')">1</button>
+        <button class="action-btn run-btn" onclick="handleRunButton('2')">2</button>
+        <button class="action-btn run-btn" onclick="handleRunButton('3')">3</button>
+        <button class="action-btn run-btn" onclick="handleRunButton('4')">4</button>
+        <button class="action-btn run-btn" onclick="handleRunButton('6')">6</button>
         <button class="action-btn wicket-btn" onclick="updateScore('wicket')">Wicket</button>
         <button class="action-btn extra-btn" onclick="updateScore('WD')">WD</button>
-        <button class="action-btn extra-btn" onclick="updateScore('NB')">NB</button>
+        <button class="action-btn extra-btn" id="nbButton" onclick="handleNbButton()">NB</button>
     </div>
+    
+    <div class="nb-run-buttons" id="nbRunButtons">
+        <button class="nb-run-btn" onclick="handleNbRun('0')">NB + 0</button>
+        <button class="nb-run-btn" onclick="handleNbRun('1')">NB + 1</button>
+        <button class="nb-run-btn" onclick="handleNbRun('2')">NB + 2</button>
+        <button class="nb-run-btn" onclick="handleNbRun('3')">NB + 3</button>
+        <button class="nb-run-btn" onclick="handleNbRun('4')">NB + 4</button>
+        <button class="nb-run-btn" onclick="handleNbRun('6')">NB + 6</button>
+    </div>
+
+
     
     <div class="custom-container">
         <input type="number" id="customRun" class="custom-input" min="0" placeholder="Runs">
-        <button class="custom-btn" onclick="updateScore('custom')">Custom Run</button>
+        <button class="custom-btn" onclick="updateScore('custom')">Add Custom Run</button>
     </div>
     
+    <button class="action-btn winner-btn" onclick="showWinnerModal()" style="margin-top: 20px; background-color: #27ae60;">Declare Winner</button>
+
+    <!-- Winner Modal -->
+    <div id="winnerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 30px; border-radius: 10px; width: 400px; max-width: 90%;">
+            <h2 style="margin-top: 0;">Declare Match Winner</h2>
+            
+            <div style="margin-bottom: 15px;">
+                <label>Winning Team:</label>
+                <select id="winnerTeam" style="width: 100%; padding: 8px; margin-top: 5px;">
+                    <option value="team1">Team 1</option>
+                    <option value="team2">Team 2</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label>Winning Margin:</label>
+                <div style="display: flex; margin-top: 5px;">
+                    <input type="number" id="winMargin" style="flex: 1; padding: 8px; margin-right: 10px;" min="1" placeholder="Margin">
+                    <select id="winType" style="flex: 1; padding: 8px;">
+                        <option value="runs">Runs</option>
+                        <option value="wickets">Wickets</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <button onclick="hideWinnerModal()" style="padding: 8px 15px; margin-right: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px;">Cancel</button>
+                <button onclick="submitWinner()" style="padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 4px;">Submit</button>
+            </div>
+        </div>
+    </div>
+       
+    
+    
     <script>
+        let nbActive = false;
+        
         function fetchMatchInfo() {
             fetch('/api/score')
                 .then(response => response.json())
@@ -175,7 +248,7 @@
                         document.getElementById('currentOvers').textContent = 
                             `${data.current_overs.toFixed(1)} / ${data.total_overs} overs`;
                        
-                            // Update target display
+                        // Update target display
                         const targetDisplay = document.getElementById('targetDisplay');
                         if (data.batting_phase === 'first') {
                             targetDisplay.textContent = 'First Innings';
@@ -194,14 +267,58 @@
                 .catch(error => console.error('Error:', error));
         }
         
-        function updateScore(action) {
-            const customRun = action === 'custom' ? 
-                document.getElementById('customRun').value : 
-                null;
-                
-            if (action === 'custom' && (!customRun || isNaN(customRun))) {
-                alert('Please enter a valid run value');
-                return;
+        function handleNbButton() {
+            nbActive = !nbActive;
+            const nbButton = document.getElementById('nbButton');
+            const nbRunButtons = document.getElementById('nbRunButtons');
+            
+            if (nbActive) {
+                nbButton.classList.add('nb-active');
+                nbRunButtons.style.display = 'grid';
+            } else {
+                nbButton.classList.remove('nb-active');
+                nbRunButtons.style.display = 'none';
+            }
+        }
+        
+        function handleNbRun(runs) {
+            // Send both the base NB (1 run) and additional runs to server
+            updateScore('NB', { 
+                nbAdditionalRuns: parseInt(runs),  // The runs scored off the no-ball
+                displayText: `NB+${runs}`         // How to display in the over summary
+            });
+            handleNbButton(); // Turn off NB mode after selection
+        }
+        
+        function handleRunButton(runs) {
+            if (nbActive) {
+                handleNbRun(runs);
+            } else {
+                updateScore(runs);
+            }
+        }
+        
+        function updateScore(action, extraData = null) {
+            let customRun = null;
+            
+            if (action === 'custom') {
+                customRun = document.getElementById('customRun').value;
+                if (!customRun || isNaN(customRun)) {
+                    alert('Please enter a valid run value');
+                    return;
+                }
+            }
+            
+            // Prepare the data to send to server
+            const requestData = { 
+                action, 
+                customRun
+            };
+            
+            // Add NB-specific data if this is a no-ball
+            if (action === 'NB' && extraData) {
+                requestData.nbAdditionalRuns = extraData.nbAdditionalRuns;
+                requestData.displayText = extraData.displayText;
             }
             
             fetch('/api/update-score', {
@@ -209,7 +326,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ action, customRun })
+                body: JSON.stringify(requestData)
             })
             .then(response => response.json())
             .then(data => {
@@ -223,9 +340,71 @@
             .catch(error => console.error('Error:', error));
         }
         
+        function showWinnerModal() {
+            document.getElementById('winnerModal').style.display = 'flex';
+            fetch('/api/score')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.team1 && data.team2) {
+                        document.getElementById('winnerTeam').innerHTML = `
+                            <option value="team1">${data.team1}</option>
+                            <option value="team2">${data.team2}</option>
+                        `;
+                    }
+                });
+        }
+        
+        function hideWinnerModal() {
+            document.getElementById('winnerModal').style.display = 'none';
+        }
+        
+        function submitWinner() {
+            const winningTeam = document.getElementById('winnerTeam').value;
+            const winMargin = document.getElementById('winMargin').value;
+            const winType = document.getElementById('winType').value;
+            
+            if (!winMargin || isNaN(winMargin) || winMargin < 1) {
+                alert('Please enter a valid positive margin');
+                return;
+            }
+            
+            fetch('/api/set-winner', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    winningTeam,
+                    winMargin: parseInt(winMargin),
+                    winType
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.error || 'Failed to declare winner');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    hideWinnerModal();
+                    alert('Winner declared successfully!');
+                    // Optional: Refresh the page or update UI
+                    fetchMatchInfo();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message || 'Error declaring winner');
+            });
+        }
+        
         // Fetch match info every 2 seconds
         setInterval(fetchMatchInfo, 2000);
         fetchMatchInfo(); // Initial load
     </script>
+    
 </body>
 </html>

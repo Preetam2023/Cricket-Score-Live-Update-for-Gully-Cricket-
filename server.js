@@ -33,31 +33,35 @@ const adminScorePath = path.join(__dirname, 'admin-score.html');
   }
 });
 
-// Create tables with error handling
+// Update your table creation code to include winner columns
 db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS matches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    team1 TEXT NOT NULL,
-    team2 TEXT NOT NULL,
-    total_overs INTEGER NOT NULL,
-    toss_winner TEXT NOT NULL,
-    toss_decision TEXT NOT NULL,
-    current_batting INTEGER NOT NULL,
-    batting_phase TEXT NOT NULL DEFAULT 'first',
-    target_score INTEGER DEFAULT NULL,
-    current_runs INTEGER DEFAULT 0,
-    current_wickets INTEGER DEFAULT 0,
-    current_overs REAL DEFAULT 0,
-    this_over TEXT DEFAULT '',
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`, (err) => {
-    if (err) {
-      console.error('Table creation error:', err.message);
-    } else {
-      console.log('Matches table ready');
-    }
+    db.run(`CREATE TABLE IF NOT EXISTS matches (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      team1 TEXT NOT NULL,
+      team2 TEXT NOT NULL,
+      total_overs INTEGER NOT NULL,
+      toss_winner TEXT NOT NULL,
+      toss_decision TEXT NOT NULL,
+      current_batting INTEGER NOT NULL,
+      batting_phase TEXT NOT NULL DEFAULT 'first',
+      target_score INTEGER DEFAULT NULL,
+      current_runs INTEGER DEFAULT 0,
+      current_wickets INTEGER DEFAULT 0,
+      current_overs REAL DEFAULT 0,
+      this_over TEXT DEFAULT '',
+      winner TEXT DEFAULT NULL,
+      win_margin INTEGER DEFAULT NULL,
+      win_type TEXT DEFAULT NULL,
+      match_status TEXT DEFAULT 'ongoing',
+      last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+      if (err) {
+        console.error('Table creation error:', err.message);
+      } else {
+        console.log('Matches table ready');
+      }
+    });
   });
-});
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -176,80 +180,78 @@ app.post('/api/setup', (req, res) => {
 
 // Score update API
 app.post('/api/update-score', (req, res) => {
-  try {
-    const { action, customRun } = req.body;
-
-    if (!action) {
-      throw new Error('Action is required');
-    }
-
-    db.get("SELECT * FROM matches ORDER BY id DESC LIMIT 1", (err, match) => {
-      if (err) throw err;
-      if (!match) throw new Error("Match not initialized");
-
-      let { current_runs, current_wickets, current_overs, this_over } = match;
-      let overHistory = this_over ? this_over.split(',') : [];
-
-      // Process action
-      const result = processScoreAction(
-        action,
-        customRun,
-        current_runs,
-        current_wickets,
-        current_overs,
-        overHistory
-      );
-
-      db.run(
-        `UPDATE matches SET 
-          current_runs = ?,
-          current_wickets = ?,
-          current_overs = ?,
-          this_over = ?,
-          last_updated = CURRENT_TIMESTAMP
-        WHERE id = ?`,
-        [
-          result.runs,
-          result.wickets,
-          result.overs,
-          result.overHistory.join(','),
-          match.id
-        ],
-        function(err) {
-          if (err) {
-            console.error('Score update error:', err);
-            return res.status(500).json({ 
-              success: false,
-              error: err.message 
+    try {
+      const { action, customRun, nbAdditionalRuns, displayText } = req.body;
+  
+      if (!action) {
+        throw new Error('Action is required');
+      }
+  
+      db.get("SELECT * FROM matches ORDER BY id DESC LIMIT 1", (err, match) => {
+        if (err) throw err;
+        if (!match) throw new Error("Match not initialized");
+  
+        let { current_runs, current_wickets, current_overs, this_over } = match;
+        let overHistory = this_over ? this_over.split(',') : [];
+  
+        // Process action
+        const result = processScoreAction(
+          action,
+          customRun,
+          current_runs,
+          current_wickets,
+          current_overs,
+          overHistory,
+          nbAdditionalRuns,  // Add this parameter
+          displayText        // Add this parameter
+        );
+  
+        db.run(
+          `UPDATE matches SET 
+            current_runs = ?,
+            current_wickets = ?,
+            current_overs = ?,
+            this_over = ?,
+            last_updated = CURRENT_TIMESTAMP
+          WHERE id = ?`,
+          [
+            result.runs,
+            result.wickets,
+            result.overs,
+            result.overHistory.join(','),
+            match.id
+          ],
+          function(err) {
+            if (err) {
+              console.error('Score update error:', err);
+              return res.status(500).json({ 
+                success: false,
+                error: err.message 
+              });
+            }
+            res.json({ 
+              success: true,
+              ...result
             });
           }
-          res.json({ 
-            success: true,
-            ...result
-          });
-        }
-      );
-    });
-  } catch (error) {
-    console.error('Score update failed:', error);
-    res.status(400).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+        );
+      });
+    } catch (error) {
+      console.error('Score update failed:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
 
 // Process score action
-function processScoreAction(action, customRun, runs, wickets, overs, overHistory) {
-    // Get current ball count (0-5)
+function processScoreAction(action, customRun, runs, wickets, overs, overHistory, nbAdditionalRuns = 0, displayText = null) {
     const balls = Math.round((overs % 1) * 10);
-    
-    // If starting a new over (balls === 0), reset the over history
     if (balls === 0) {
         overHistory = [];
     }
 
-    // Process the action
     switch (action) {
         case '0': case '1': case '2': case '3': case '4': case '6':
             runs += parseInt(action);
@@ -266,8 +268,9 @@ function processScoreAction(action, customRun, runs, wickets, overs, overHistory
             overHistory.push('WD');
             break;
         case 'NB':
-            runs += 1;
-            overHistory.push('NB');
+                // Add 1 run for the no-ball plus any additional runs
+            runs += 1 + (nbAdditionalRuns ? parseInt(nbAdditionalRuns) : 0);
+            overHistory.push(displayText || 'NB');
             break;
         case 'custom':
             if (!customRun || isNaN(customRun)) throw new Error('Invalid custom run value');
@@ -284,7 +287,7 @@ function processScoreAction(action, customRun, runs, wickets, overs, overHistory
         wickets,
         overs,
         overHistory,
-        thisOver: overHistory.join('  ') // Space-separated balls
+        thisOver: overHistory.join(',')
     };
 }
 
@@ -305,6 +308,68 @@ app.use((err, req, res, next) => {
   });
 });
 
+app.post('/api/set-winner', (req, res) => {
+    try {
+        const { winningTeam, winMargin, winType } = req.body;
+        
+        // Input validation
+        if (!winningTeam || !winMargin || !winType) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields' 
+            });
+        }
+        
+        if (isNaN(winMargin) || winMargin < 1) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid win margin' 
+            });
+        }
+
+        db.run(
+            `UPDATE matches SET 
+                winner = ?,
+                win_margin = ?,
+                win_type = ?,
+                match_status = 'completed'
+            WHERE id = (SELECT id FROM matches ORDER BY id DESC LIMIT 1)`,
+            [
+                winningTeam,
+                parseInt(winMargin),
+                winType
+            ],
+            function(err) {
+                if (err) {
+                    console.error('Database error setting winner:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Database error',
+                        details: err.message 
+                    });
+                }
+                
+                if (this.changes === 0) {
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'No match found to update' 
+                    });
+                }
+                
+                res.json({ 
+                    success: true,
+                    changes: this.changes
+                });
+            }
+        );
+    } catch (error) {
+        console.error('Unexpected error in set-winner:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
 // Start server
 app.listen(port, () => {
   console.log(`\nServer running on port ${port}`);

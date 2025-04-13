@@ -6,7 +6,41 @@
     <title>Cricket Live Score</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
+        @media (max-width: 768px) {
+            .score-container {
+                flex-direction: column;
+                align-items: center;
+            }
+        
+            .score-box, .target-box {
+                width: 100%;
+                margin-bottom: 15px;
+            }
+        
+            .match-title {
+                font-size: 26px;
+            }
+        
+            .toss-info {
+                font-size: 18px;
+                text-align: center;
+            }
+        
+            .runs, .wickets {
+                font-size: 50px;
+            }
+        
+            .target-value {
+                font-size: 32px;
+            }
+        
+            .refresh-btn, .result-btn {
+                width: 100%;
+            }
+        }
+        
         :root {
             --primary: #ff4757;
             --secondary: #1e90ff;
@@ -15,6 +49,7 @@
             --success: #2ed573;
             --warning: #ffa502;
             --normal: #ffffff;
+            --gold: #FFD700;
         }
         
         * {
@@ -42,6 +77,12 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.7);
             z-index: -1;
+            animation: backgroundMove 20s ease-in-out infinite alternate;
+        }
+        
+        @keyframes backgroundMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
         }
         
         .container {
@@ -75,13 +116,39 @@
         .match-title {
             font-size: 38px;
             font-weight: 800;
-            margin-bottom: 10px;
+            margin: 0 auto 15px;
             text-transform: uppercase;
             letter-spacing: 1px;
             background: linear-gradient(to right, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            width: fit-content;
+            position: relative;
+            padding: 0 20px;
+        }
+        
+        .match-title .vs {
+            display: inline-block;
+            margin: 0 15px;
+            color: var(--primary);
+            font-weight: 900;
+            text-shadow: 0 0 8px rgba(255, 71, 87, 0.5);
+        }
+        
+        .match-title::after {
+            content: '';
+            display: block;
+            width: 60%;
+            height: 2px;
+            margin: 5px auto 0;
+            background: linear-gradient(to right, transparent, var(--primary), transparent);
+            animation: underlinePulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes underlinePulse {
+            0%, 100% { opacity: 0.7; transform: scaleX(0.8); }
+            50% { opacity: 1; transform: scaleX(1); }
         }
         
         .toss-info {
@@ -139,6 +206,12 @@
             font-weight: 700;
             color: var(--primary);
         }
+
+        .score-box:hover, .target-box:hover {
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+            transform: scale(1.01);
+            transition: all 0.3s ease;
+        }
         
         .batting-team {
             font-size: 20px;
@@ -191,7 +264,7 @@
         .balls-container {
             display: flex;
             justify-content: center;
-            gap: 10px; /* reduced from 12px for better spacing */
+            gap: 10px;
             font-size: 18px;
             flex-wrap: wrap;
         }
@@ -232,6 +305,42 @@
             background-color: #ffa502;
             color: black;
         }
+        .ball-NB {
+            border-radius: 8px;
+            padding: 0 8px;
+            min-width: 40px;
+            background-color: #ffa502;
+            color: black;
+            border: 2px solid #ffcc00;
+            box-shadow: 0 0 5px rgba(255, 165, 2, 0.7);
+            position: relative;
+            font-weight: bold;
+        }
+        
+        .ball-NB[data-nb]::before {
+            content: attr(data-nb);
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ff4757;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 3px rgba(0,0,0,0.3);
+            z-index: 1;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
         
         .last-updated {
             font-size: 12px;
@@ -256,16 +365,57 @@
             box-shadow: 0 4px 15px rgba(30, 144, 255, 0.3);
         }
         
+        .result-btn {
+            background: linear-gradient(to right, var(--gold), #ffcc00);
+            color: #1a1a1a;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-weight: 700;
+            cursor: pointer;
+            display: block;
+            margin: 15px auto 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+            animation: pulse 2s infinite;
+        }
+        
         .refresh-btn:hover {
             background: #1a7fd8;
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(30, 144, 255, 0.4);
         }
         
+        .result-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+        }
+        
         .vs {
             color: var(--primary);
             font-weight: bold;
             margin: 0 10px;
+        }
+        
+        .result-status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+        
+        .match-status {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--light);
+            margin-bottom: 5px;
+        }
+        
+        .result-message {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
@@ -280,7 +430,7 @@
         </div>
         
         <div class="toss-info" id="toss-info">
-            Toss Winner: Loading... | Chose to Loading...
+            Toss Winner : Loading... | Chose to Loading...
         </div>
         
         <div class="score-container">
@@ -306,29 +456,39 @@
             </div>
         </div>
         
+        <div class="result-status" id="result-status">
+            <div class="match-status">Match Status : Ongoing</div>
+            <div class="result-message">Match Result is Not Declared</div>
+        </div>
+        
         <div class="last-updated" id="last-updated">Last updated: Just now</div>
         <button class="refresh-btn" onclick="fetchScore()">Refresh Score</button>
+        <button class="result-btn" id="result-btn">See Result</button>
     </div>
 
     <script>
         function formatBall(ball) {
-            // Skip empty values and over separator
             if (!ball || ball === '||') return '';
             
-            // Trim any whitespace
             ball = ball.trim();
             
-            // Determine the class based on ball value
             let ballClass = 'ball';
-            if (ball === 'W') ballClass += ' ball-W';
+            let extraAttrs = '';
+            
+            if (ball.startsWith('NB+')) {
+                ballClass += ' ball-NB';
+                extraAttrs = ` data-nb="${ball.split('+')[1]}"`;
+                ball = 'NB';
+            } 
+            else if (ball === 'W') ballClass += ' ball-W';
             else if (ball === 'WD') ballClass += ' ball-WD';
             else if (ball === 'NB') ballClass += ' ball-NB';
             else if (ball === '4') ballClass += ' ball-4';
             else if (ball === '6') ballClass += ' ball-6';
             else if (['0','1','2','3'].includes(ball)) ballClass += ` ball-${ball}`;
-            else ballClass += ' ball-0'; // default case
+            else ballClass += ' ball-0';
             
-            return `<div class="${ballClass}">${ball}</div>`;
+            return `<div class="${ballClass}"${extraAttrs}>${ball}</div>`;
         }
     
         function formatTime(date) {
@@ -343,17 +503,14 @@
     
         function updateUI(data) {
             if (data.team1) {
-                // Update match title
                 document.getElementById('team1-name').textContent = data.team1;
                 document.getElementById('team2-name').textContent = data.team2;
                 
-                // Update toss information
                 const tossWinner = data.toss_winner === 'team1' ? data.team1 : data.team2;
                 const tossDecision = data.toss_decision === 'bat' ? 'Chose to Batting' : 'Chose to Bowling';
                 document.getElementById('toss-info').textContent = 
-                    `Toss Winner: ${tossWinner} | ${tossDecision}`;
+                    `Toss Winner  : ${tossWinner} | ${tossDecision}`;
                 
-                // Update current batting team and score
                 const battingTeam = data.current_batting == 1 ? data.team1 : data.team2;
                 document.getElementById('current-batting-team').textContent = battingTeam;
                 document.getElementById('current-runs').textContent = data.current_runs;
@@ -361,7 +518,6 @@
                 document.getElementById('current-overs').textContent = 
                     `${data.current_overs.toFixed(1)} / ${data.total_overs} overs`;
                 
-                // Update target display
                 const targetDisplay = document.getElementById('target-display');
                 if (data.batting_phase === 'first') {
                     targetDisplay.textContent = 'First Batting';
@@ -369,37 +525,29 @@
                     targetDisplay.textContent = data.target_score;
                 }
                 
-                // Update this over display
                 const thisOverContainer = document.getElementById('this-over-display');
                 let currentOverBalls = [];
                 
                 if (data.this_over) {
-                    // Handle different formats of this_over data
                     if (Array.isArray(data.this_over)) {
-                        // If it's already an array
                         currentOverBalls = data.this_over;
                     } else if (typeof data.this_over === 'string') {
-                        // If it's a string with commas: "0,1,4,1,6,W"
                         if (data.this_over.includes(',')) {
                             currentOverBalls = data.this_over.split(',');
                         } 
-                        // If it's a string with spaces: "0 1 4 1 6 W"
                         else if (data.this_over.includes(' ')) {
                             currentOverBalls = data.this_over.split(' ');
                         }
-                        // If it's a continuous string: "01416W"
                         else {
                             currentOverBalls = data.this_over.split('');
                         }
                     }
                     
-                    // Clean up the balls array
                     currentOverBalls = currentOverBalls
                         .map(ball => ball.toString().trim())
                         .filter(ball => ball && ball !== '||' && ball !== ',');
                 }
                 
-                // Clear previous content and add new balls
                 thisOverContainer.innerHTML = '';
                 currentOverBalls.forEach(ball => {
                     if (ball) {
@@ -407,43 +555,51 @@
                     }
                 });
                    
-                // Update timestamp
                 if (data.last_updated) {
                     const date = new Date(data.last_updated);
                     document.getElementById('last-updated').textContent = 
                         `Last updated: ${formatTime(date)}`;
                 }
+                
+                // Update match status
+                if (data.match_status === 'completed') {
+                    sessionStorage.setItem('winnerData', JSON.stringify(data));
+                }
             }
         }
     
         function fetchScore() {
-            // For testing purposes, you can uncomment this block
-            /*
-            const testData = {
-                team1: "INDIA",
-                team2: "AUSTRALIA",
-                toss_winner: "team1",
-                toss_decision: "bat",
-                current_batting: 1,
-                current_runs: 156,
-                current_wickets: 2,
-                current_overs: 23.4,
-                total_overs: 50,
-                batting_phase: "first",
-                this_over: "0,1,4,6,W",  // Test with different formats
-                last_updated: new Date().toISOString()
-            };
-            updateUI(testData);
-            return;
-            */
-            
             fetch('/api/score')
                 .then(response => response.json())
-                .then(data => updateUI(data))
+                .then(data => {
+                    if (data.team1) {
+                        updateUI(data);
+                    }
+                })
                 .catch(error => console.error('Error:', error));
         }
+        
+        function checkResult() {
+            const resultStatus = document.getElementById('result-status');
+            const winnerData = sessionStorage.getItem('winnerData');
+            
+            if (winnerData) {
+                // Redirect to winner page if result exists
+                window.location.href = 'winner.html';
+            } else {
+                // Toggle result status visibility
+                if (resultStatus.style.display === 'block') {
+                    resultStatus.style.display = 'none';
+                } else {
+                    resultStatus.style.display = 'block';
+                }
+            }
+        }
     
-        // Fetch score every 5 seconds
+        // Initialize
+        document.getElementById('result-btn').addEventListener('click', checkResult);
+        
+        // Fetch score every 3 seconds
         setInterval(fetchScore, 3000);
         fetchScore(); // Initial load
     </script>
