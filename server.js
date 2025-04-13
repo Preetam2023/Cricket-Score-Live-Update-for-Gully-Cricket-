@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const Database = require('better-sqlite3'); // Changed from sqlite3
+const { Sequelize, DataTypes } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
 
@@ -8,10 +8,99 @@ const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Database setup with error handling
-const db = new Database('./cricket.db'); // Simplified connection
+// Database setup with PostgreSQL
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres',
+  protocol: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  },
+  logging: false
+});
 
-console.log('Connected to cricket database');
+// Define Match model
+const Match = sequelize.define('Match', {
+  team1: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  team2: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  totalOvers: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  tossWinner: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  tossDecision: {
+    type: DataTypes.STRING,
+    allowNull: false
+  },
+  currentBatting: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  battingPhase: {
+    type: DataTypes.STRING,
+    defaultValue: 'first'
+  },
+  targetScore: {
+    type: DataTypes.INTEGER
+  },
+  currentRuns: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  currentWickets: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  currentOvers: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0.0
+  },
+  thisOver: {
+    type: DataTypes.STRING,
+    defaultValue: ''
+  },
+  winner: {
+    type: DataTypes.STRING
+  },
+  winMargin: {
+    type: DataTypes.INTEGER
+  },
+  winType: {
+    type: DataTypes.STRING
+  },
+  matchStatus: {
+    type: DataTypes.STRING,
+    defaultValue: 'ongoing'
+  }
+}, {
+  tableName: 'matches',
+  timestamps: true,
+  updatedAt: 'last_updated',
+  createdAt: false
+});
+
+// Initialize database
+async function initializeDB() {
+  try {
+    await sequelize.authenticate();
+    await Match.sync();
+    console.log('Database connected and synced');
+  } catch (error) {
+    console.error('Database connection error:', error);
+  }
+}
+initializeDB();
 
 // Debug information
 console.log('Current working directory:', process.cwd());
@@ -29,43 +118,18 @@ const adminScorePath = path.join(__dirname, 'admin-score.html');
   }
 });
 
-// Update your table creation code to include winner columns
-try {
-  db.prepare(`CREATE TABLE IF NOT EXISTS matches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    team1 TEXT NOT NULL,
-    team2 TEXT NOT NULL,
-    total_overs INTEGER NOT NULL,
-    toss_winner TEXT NOT NULL,
-    toss_decision TEXT NOT NULL,
-    current_batting INTEGER NOT NULL,
-    batting_phase TEXT NOT NULL DEFAULT 'first',
-    target_score INTEGER DEFAULT NULL,
-    current_runs INTEGER DEFAULT 0,
-    current_wickets INTEGER DEFAULT 0,
-    current_overs REAL DEFAULT 0,
-    this_over TEXT DEFAULT '',
-    winner TEXT DEFAULT NULL,
-    win_margin INTEGER DEFAULT NULL,
-    win_type TEXT DEFAULT NULL,
-    match_status TEXT DEFAULT 'ongoing',
-    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )`).run();
-  console.log('Matches table ready');
-} catch (err) {
-  console.error('Table creation error:', err.message);
-}
-
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static('public'));
 
 // API to get current score
-app.get('/api/score', (req, res) => {
+app.get('/api/score', async (req, res) => {
   try {
-    const row = db.prepare("SELECT * FROM matches ORDER BY id DESC LIMIT 1").get();
-    res.json(row || {});
+    const match = await Match.findOne({
+      order: [['id', 'DESC']]
+    });
+    res.json(match || {});
   } catch (err) {
     console.error('Score fetch error:', err);
     res.status(500).json({ 
@@ -78,32 +142,16 @@ app.get('/api/score', (req, res) => {
 // Admin routes (unchanged)
 app.get('/admin', (req, res) => {
   const filePath = path.join(__dirname, 'admin-setup.html');
-  console.log(`Serving admin setup: ${filePath}`);
-  
-  fs.access(filePath, fs.constants.R_OK, (err) => {
-    if (err) {
-      console.error('File access error:', err);
-      return res.status(404).send('Admin setup page not found');
-    }
-    res.sendFile(filePath);
-  });
+  res.sendFile(filePath);
 });
 
 app.get('/admin/score', (req, res) => {
   const filePath = path.join(__dirname, 'admin-score.html');
-  console.log(`Serving score control: ${filePath}`);
-  
-  fs.access(filePath, fs.constants.R_OK, (err) => {
-    if (err) {
-      console.error('File access error:', err);
-      return res.status(404).send('Admin score page not found');
-    }
-    res.sendFile(filePath);
-  });
+  res.sendFile(filePath);
 });
 
 // Enhanced match setup API
-app.post('/api/setup', (req, res) => {
+app.post('/api/setup', async (req, res) => {
   try {
     const { team1, team2, total_overs, toss_winner, toss_decision, current_batting, batting_phase } = req.body;
 
@@ -112,44 +160,50 @@ app.post('/api/setup', (req, res) => {
       throw new Error('All fields are required');
     }
 
-    const insertMatch = (target_score) => {
-      const stmt = db.prepare(
-        `INSERT INTO matches (
-          team1, team2, total_overs, toss_winner, toss_decision, 
-          current_batting, batting_phase, target_score
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      );
-      
-      const info = stmt.run(
-        team1.toString().trim(),
-        team2.toString().trim(),
-        parseInt(total_overs),
-        toss_winner.toString().trim(),
-        toss_decision.toString().trim(),
-        parseInt(current_batting),
-        batting_phase,
-        target_score
-      );
-
-      console.log(`Match setup successful with ID: ${info.lastInsertRowid}`);
-      res.json({ 
-        success: true,
-        id: info.lastInsertRowid,
-        redirect: '/admin/score'
-      });
-    };
-
     if (batting_phase === 'chase') {
-      const row = db.prepare("SELECT current_runs FROM matches ORDER BY id DESC LIMIT 1").get();
-      if (!row) {
+      const previousMatch = await Match.findOne({
+        order: [['id', 'DESC']]
+      });
+      
+      if (!previousMatch) {
         return res.status(400).json({ 
           success: false,
           error: "No previous innings found to chase" 
         });
       }
-      insertMatch(row.current_runs + 1);
+
+      const match = await Match.create({
+        team1,
+        team2,
+        totalOvers: total_overs,
+        tossWinner: toss_winner,
+        tossDecision: toss_decision,
+        currentBatting: current_batting,
+        battingPhase: batting_phase,
+        targetScore: previousMatch.currentRuns + 1
+      });
+
+      res.json({ 
+        success: true,
+        id: match.id,
+        redirect: '/admin/score'
+      });
     } else {
-      insertMatch(null);
+      const match = await Match.create({
+        team1,
+        team2,
+        totalOvers: total_overs,
+        tossWinner: toss_winner,
+        tossDecision: toss_decision,
+        currentBatting: current_batting,
+        battingPhase: batting_phase
+      });
+
+      res.json({ 
+        success: true,
+        id: match.id,
+        redirect: '/admin/score'
+      });
     }
   } catch (error) {
     console.error('Setup error:', error);
@@ -162,7 +216,7 @@ app.post('/api/setup', (req, res) => {
 });
 
 // Score update API
-app.post('/api/update-score', (req, res) => {
+app.post('/api/update-score', async (req, res) => {
   try {
     const { action, customRun, nbAdditionalRuns, displayText } = req.body;
 
@@ -170,39 +224,33 @@ app.post('/api/update-score', (req, res) => {
       throw new Error('Action is required');
     }
 
-    const match = db.prepare("SELECT * FROM matches ORDER BY id DESC LIMIT 1").get();
+    const match = await Match.findOne({
+      order: [['id', 'DESC']]
+    });
+    
     if (!match) throw new Error("Match not initialized");
 
-    let { current_runs, current_wickets, current_overs, this_over } = match;
-    let overHistory = this_over ? this_over.split(',') : [];
+    let { currentRuns, currentWickets, currentOvers, thisOver } = match;
+    let overHistory = thisOver ? thisOver.split(',') : [];
 
-    // Process action
+    // Process action (keep your existing function)
     const result = processScoreAction(
       action,
       customRun,
-      current_runs,
-      current_wickets,
-      current_overs,
+      currentRuns,
+      currentWickets,
+      currentOvers,
       overHistory,
       nbAdditionalRuns,
       displayText
     );
 
-    const info = db.prepare(
-      `UPDATE matches SET 
-        current_runs = ?,
-        current_wickets = ?,
-        current_overs = ?,
-        this_over = ?,
-        last_updated = CURRENT_TIMESTAMP
-      WHERE id = ?`
-    ).run(
-      result.runs,
-      result.wickets,
-      result.overs,
-      result.overHistory.join(','),
-      match.id
-    );
+    await match.update({
+      currentRuns: result.runs,
+      currentWickets: result.wickets,
+      currentOvers: result.overs,
+      thisOver: result.overHistory.join(',')
+    });
 
     res.json({ 
       success: true,
@@ -217,9 +265,8 @@ app.post('/api/update-score', (req, res) => {
   }
 });
 
-// (Keep your existing processScoreAction and updateOvers functions exactly the same)
-
-app.post('/api/set-winner', (req, res) => {
+// Set winner API
+app.post('/api/set-winner', async (req, res) => {
   try {
     const { winningTeam, winMargin, winType } = req.body;
     
@@ -237,29 +284,27 @@ app.post('/api/set-winner', (req, res) => {
       });
     }
 
-    const info = db.prepare(
-      `UPDATE matches SET 
-        winner = ?,
-        win_margin = ?,
-        win_type = ?,
-        match_status = 'completed'
-      WHERE id = (SELECT id FROM matches ORDER BY id DESC LIMIT 1)`
-    ).run(
-      winningTeam,
-      parseInt(winMargin),
-      winType
-    );
+    const match = await Match.findOne({
+      order: [['id', 'DESC']]
+    });
     
-    if (info.changes === 0) {
+    if (!match) {
       return res.status(404).json({ 
         success: false, 
         error: 'No match found to update' 
       });
     }
+
+    await match.update({
+      winner: winningTeam,
+      winMargin: parseInt(winMargin),
+      winType: winType,
+      matchStatus: 'completed'
+    });
     
     res.json({ 
       success: true,
-      changes: info.changes
+      changes: 1
     });
   } catch (error) {
     console.error('Unexpected error in set-winner:', error);
@@ -269,6 +314,15 @@ app.post('/api/set-winner', (req, res) => {
     });
   }
 });
+
+// Keep your existing helper functions
+function processScoreAction(action, customRun, runs, wickets, overs, overHistory, nbAdditionalRuns, displayText) {
+  // ... (keep your existing implementation)
+}
+
+function updateOvers(currentOvers) {
+  // ... (keep your existing implementation)
+}
 
 // Start server
 app.listen(port, () => {
