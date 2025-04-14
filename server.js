@@ -216,128 +216,125 @@ app.post('/api/setup', async (req, res) => {
 });
 
 // Score update API
-// In your score update API endpoint (app.post('/api/update-score'))
-// Update your /api/update-score endpoint in server.js
-// In your /api/update-score endpoint in server.js
 app.post('/api/update-score', async (req, res) => {
     try {
-      const { action, customRun, nbAdditionalRuns, displayText } = req.body;
-  
-      if (!action) {
-        throw new Error('Action is required');
-      }
-  
-      const match = await Match.findOne({
-        order: [['id', 'DESC']]
-      });
-      
-      if (!match) throw new Error("Match not initialized");
-  
-      let { currentRuns, currentWickets, currentOvers, thisOver, totalOvers } = match;
-      let overHistory = thisOver ? thisOver.split(',') : [];
-      
-      // Process the action
-      let runsToAdd = 0;
-      let wicketToAdd = 0;
-      let isLegalBall = true;
-      let overEntry = '';
-  
-      switch (action.toString().toLowerCase()) {
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '6':
-          runsToAdd = parseInt(action);
-          overEntry = action;
-          break;
-        case 'w':
-        case 'wicket':
-          wicketToAdd = 1;
-          overEntry = 'W';
-          break;
-        case 'wd':
-          runsToAdd = 1;
-          overEntry = 'WD';
-          isLegalBall = false;
-          break;
-        case 'nb':
-          runsToAdd = 1 + (parseInt(nbAdditionalRuns) || 0);
-          overEntry = displayText || `NB${nbAdditionalRuns ? `+${nbAdditionalRuns}` : ''}`;
-          isLegalBall = false;
-          break;
-        case 'custom':
-          if (!customRun || isNaN(customRun)) {
-            throw new Error('Invalid custom run value');
-          }
-          runsToAdd = parseInt(customRun);
-          overEntry = customRun;
-          break;
-        default:
-          throw new Error('Invalid action');
-      }
-  
-      // Update match data
-      currentRuns += runsToAdd;
-      currentWickets += wicketToAdd;
-  
-      // Update over history
-      overHistory.push(overEntry);
-      
-      // Calculate legal balls for over progression
-      const legalBalls = overHistory.filter(ball => 
-        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-      ).length;
-  
-      // Calculate current over balls (0.1 to 0.6 format)
-      const ballsInOver = legalBalls % 6;
-      const completedOvers = Math.floor(legalBalls / 6);
-      currentOvers = completedOvers + (ballsInOver * 0.1);
-  
-      // Get only the current over's balls (last 6 entries)
-      let currentOverBalls = [];
-      let legalBallsInCurrentOver = 0;
-      
-      // Work backwards through history to find current over's balls
-      for (let i = overHistory.length - 1; i >= 0; i--) {
-        const ball = overHistory[i];
-        currentOverBalls.unshift(ball); // Add to beginning to maintain order
-        
-        // Count legal balls to determine over boundary
-        if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
-          legalBallsInCurrentOver++;
-          if (legalBallsInCurrentOver >= 6) break;
+        const { action, customRun, nbAdditionalRuns, displayText } = req.body;
+
+        if (!action) {
+            throw new Error('Action is required');
         }
-      }
-  
-      // Save updated match
-      await match.update({
-        currentRuns,
-        currentWickets,
-        currentOvers: parseFloat(currentOvers.toFixed(1)),
-        thisOver: overHistory.join(',')
-      });
-  
-      res.json({ 
-        success: true,
-        currentRuns,
-        currentWickets,
-        currentOvers: currentOvers.toFixed(1),
-        totalOvers,
-        currentOverBalls: currentOverBalls.join(','), // Only current over's balls
-        fullOverHistory: overHistory.join(','),
-        message: 'Score updated successfully'
-      });
-  
+
+        const match = await Match.findOne({
+            order: [['id', 'DESC']]
+        });
+        
+        if (!match) throw new Error("Match not initialized");
+
+        let { currentRuns, currentWickets, currentOvers, thisOver, totalOvers } = match;
+        let overHistory = thisOver ? thisOver.split(',') : [];
+        
+        // Process the action
+        let runsToAdd = 0;
+        let wicketToAdd = 0;
+        let isLegalBall = true;
+        let overEntry = '';
+
+        switch (action.toString().toLowerCase()) {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '6':
+                runsToAdd = parseInt(action);
+                overEntry = action;
+                break;
+            case 'w':
+            case 'wicket':
+                wicketToAdd = 1;
+                overEntry = 'W';
+                break;
+            case 'wd':
+                runsToAdd = 1;
+                overEntry = 'WD';
+                isLegalBall = false;
+                break;
+            case 'nb':
+                runsToAdd = 1 + (parseInt(nbAdditionalRuns) || 0);
+                overEntry = displayText || `NB${nbAdditionalRuns ? `+${nbAdditionalRuns}` : ''}`;
+                isLegalBall = false;
+                break;
+            case 'custom':
+                if (!customRun || isNaN(customRun)) {
+                    throw new Error('Invalid custom run value');
+                }
+                runsToAdd = parseInt(customRun);
+                overEntry = customRun;
+                break;
+            default:
+                throw new Error('Invalid action');
+        }
+
+        // Update match data
+        currentRuns += runsToAdd;
+        currentWickets += wicketToAdd;
+
+        // Update over history
+        overHistory.push(overEntry);
+        
+        // Calculate legal balls for over progression
+        const legalBalls = overHistory.filter(ball => 
+            !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+        ).length;
+
+        // Calculate current over
+        const ballsInOver = legalBalls % 6;
+        const completedOvers = Math.floor(legalBalls / 6);
+        currentOvers = completedOvers + (ballsInOver * 0.1);
+
+        // Get ONLY the balls from the current over
+        let currentOverBalls = [];
+        let legalBallsCount = 0;
+        
+        // Start from the end and go backwards to find the current over's balls
+        for (let i = overHistory.length - 1; i >= 0; i--) {
+            const ball = overHistory[i];
+            currentOverBalls.unshift(ball); // Add to beginning to maintain order
+            
+            // Count legal balls to determine over boundary
+            if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
+                legalBallsCount++;
+                if (legalBallsCount >= 6) break;
+            }
+        }
+
+        // Save updated match
+        await match.update({
+            currentRuns,
+            currentWickets,
+            currentOvers: parseFloat(currentOvers.toFixed(1)),
+            thisOver: overHistory.join(',')
+        });
+
+        res.json({ 
+            success: true,
+            currentRuns,
+            currentWickets,
+            currentOvers: currentOvers.toFixed(1),
+            totalOvers,
+            currentOverBalls: currentOverBalls.join(','), // Only current over's balls
+            fullOverHistory: overHistory.join(','),
+            message: 'Score updated successfully'
+        });
+
     } catch (error) {
-      console.error('Score update failed:', error);
-      res.status(400).json({
-        success: false,
-        error: error.message
-      });
+        console.error('Score update failed:', error);
+        res.status(400).json({
+            success: false,
+            error: error.message
+        });
     }
-  });
+});
 
 // Set winner API
 app.post('/api/set-winner', async (req, res) => {
