@@ -217,6 +217,7 @@ app.post('/api/setup', async (req, res) => {
 
 // Score update API
 // In your score update API endpoint (app.post('/api/update-score'))
+// Update your /api/update-score endpoint in server.js
 app.post('/api/update-score', async (req, res) => {
     try {
       const { action, customRun, nbAdditionalRuns, displayText } = req.body;
@@ -234,27 +235,13 @@ app.post('/api/update-score', async (req, res) => {
       let { currentRuns, currentWickets, currentOvers, thisOver, totalOvers } = match;
       let overHistory = thisOver ? thisOver.split(',') : [];
       
-      // Get only the current over's balls (last 6 legal balls)
-      let currentOverBalls = [];
-      let legalBallsCount = 0;
-      
-      // Count backwards to find the last 6 legal balls
-      for (let i = overHistory.length - 1; i >= 0; i--) {
-        const ball = overHistory[i];
-        if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
-          currentOverBalls.unshift(ball); // Add to beginning to maintain order
-          legalBallsCount++;
-          if (legalBallsCount === 6) break;
-        }
-      }
-  
       // Process the action
       let runsToAdd = 0;
       let wicketToAdd = 0;
       let isLegalBall = true;
       let overEntry = '';
   
-      switch (action.toString()) {
+      switch (action.toString().toLowerCase()) { // Make case insensitive
         case '0':
           overEntry = '0';
           break;
@@ -266,16 +253,17 @@ app.post('/api/update-score', async (req, res) => {
           runsToAdd = parseInt(action);
           overEntry = action;
           break;
-        case 'W':
+        case 'w':
+        case 'wicket':
           wicketToAdd = 1;
           overEntry = 'W';
           break;
-        case 'WD':
+        case 'wd':
           runsToAdd = 1;
           overEntry = 'WD';
           isLegalBall = false;
           break;
-        case 'NB':
+        case 'nb':
           runsToAdd = 1 + (parseInt(nbAdditionalRuns) || 0);
           overEntry = displayText || `NB${nbAdditionalRuns ? `+${nbAdditionalRuns}` : ''}`;
           isLegalBall = false;
@@ -295,24 +283,25 @@ app.post('/api/update-score', async (req, res) => {
       currentRuns += runsToAdd;
       currentWickets += wicketToAdd;
   
-      // Handle over progression (only count legal balls)
+      // Calculate legal balls count for over progression
+      const legalBallsCount = overHistory.filter(ball => 
+        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+      ).length;
+  
+      // Update currentOvers display (e.g., 4.3 means 4 overs and 3 balls)
+      const completedOvers = Math.floor(legalBallsCount / 6);
+      const ballsInCurrentOver = legalBallsCount % 6;
+      
+      // Only update currentOvers if it's a legal ball
       if (isLegalBall) {
-        const legalBallsInMatch = overHistory.filter(ball => 
-          !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-        ).length;
-        
-        const completedOvers = Math.floor(legalBallsInMatch / 6);
-        const ballsInCurrentOver = legalBallsInMatch % 6;
-        
-        // Update currentOvers display (e.g., 4.3 means 4 overs and 3 balls)
         currentOvers = completedOvers + (ballsInCurrentOver * 0.1);
       }
   
       // Update over history
       overHistory.push(overEntry);
       
-      // Get current over balls for response (last 6 balls including illegal deliveries)
-      const responseOverBalls = overHistory.slice(-6);
+      // Get only the current over's balls (last 6 entries)
+      const currentOverBalls = overHistory.slice(-6);
   
       // Save updated match
       await match.update({
@@ -328,7 +317,7 @@ app.post('/api/update-score', async (req, res) => {
         currentWickets,
         currentOvers: currentOvers.toFixed(1), // Format as "overs.balls"
         totalOvers,
-        thisOver: responseOverBalls.join(','), // Only current over's balls
+        thisOver: currentOverBalls.join(','), // Only current over's balls
         fullOverHistory: overHistory.join(','),
         message: 'Score updated successfully'
       });
@@ -341,6 +330,7 @@ app.post('/api/update-score', async (req, res) => {
       });
     }
   });
+  
 // Set winner API
 app.post('/api/set-winner', async (req, res) => {
   try {

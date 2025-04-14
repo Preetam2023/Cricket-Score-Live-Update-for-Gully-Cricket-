@@ -48,6 +48,21 @@
             margin: 0 5px;
             font-weight: bold;
         }
+        .ball-W {
+            color: #e74c3c;
+        }
+        .ball-WD {
+            color: #f39c12;
+        }
+        .ball-NB {
+            color: #9b59b6;
+        }
+        .ball-4 {
+            color: #3498db;
+        }
+        .ball-6 {
+            color: #2ecc71;
+        }
         .button-container {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -164,34 +179,31 @@
     </div>
     
     <div class="button-container">
-        <button class="action-btn run-btn" onclick="handleRunButton('0')">0</button>
-        <button class="action-btn run-btn" onclick="handleRunButton('1')">1</button>
-        <button class="action-btn run-btn" onclick="handleRunButton('2')">2</button>
-        <button class="action-btn run-btn" onclick="handleRunButton('3')">3</button>
-        <button class="action-btn run-btn" onclick="handleRunButton('4')">4</button>
-        <button class="action-btn run-btn" onclick="handleRunButton('6')">6</button>
-        <button class="action-btn wicket-btn" onclick="updateScore('wicket')">Wicket</button>
-        <button class="action-btn extra-btn" onclick="updateScore('WD')">WD</button>
-        <button class="action-btn extra-btn" id="nbButton" onclick="handleNbButton()">NB</button>
+        <button class="action-btn run-btn" data-runs="0">0</button>
+        <button class="action-btn run-btn" data-runs="1">1</button>
+        <button class="action-btn run-btn" data-runs="2">2</button>
+        <button class="action-btn run-btn" data-runs="3">3</button>
+        <button class="action-btn run-btn" data-runs="4">4</button>
+        <button class="action-btn run-btn" data-runs="6">6</button>
+        <button class="action-btn wicket-btn" data-action="W">Wicket</button>
+        <button class="action-btn extra-btn" data-action="WD">WD</button>
+        <button class="action-btn extra-btn" id="nbButton">NB</button>
     </div>
     
     <div class="nb-run-buttons" id="nbRunButtons">
-        <button class="nb-run-btn" onclick="handleNbRun('0')">NB + 0</button>
-        <button class="nb-run-btn" onclick="handleNbRun('1')">NB + 1</button>
-        <button class="nb-run-btn" onclick="handleNbRun('2')">NB + 2</button>
-        <button class="nb-run-btn" onclick="handleNbRun('3')">NB + 3</button>
-        <button class="nb-run-btn" onclick="handleNbRun('4')">NB + 4</button>
-        <button class="nb-run-btn" onclick="handleNbRun('6')">NB + 6</button>
+        <button class="nb-run-btn" data-runs="0">NB + 0</button>
+        <button class="nb-run-btn" data-runs="1">NB + 1</button>
+        <button class="nb-run-btn" data-runs="2">NB + 2</button>
+        <button class="nb-run-btn" data-runs="4">NB + 4</button>
+        <button class="nb-run-btn" data-runs="6">NB + 6</button>
     </div>
 
-
-    
     <div class="custom-container">
         <input type="number" id="customRun" class="custom-input" min="0" placeholder="Runs">
-        <button class="custom-btn" onclick="updateScore('custom')">Add Custom Run</button>
+        <button class="custom-btn" id="customRunBtn">Add Custom Run</button>
     </div>
     
-    <button class="action-btn winner-btn" onclick="showWinnerModal()" style="margin-top: 20px; background-color: #27ae60;">Declare Winner</button>
+    <button class="action-btn winner-btn" id="declareWinnerBtn" style="margin-top: 20px;">Declare Winner</button>
 
     <!-- Winner Modal -->
     <div id="winnerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;">
@@ -218,13 +230,11 @@
             </div>
             
             <div style="display: flex; justify-content: flex-end;">
-                <button onclick="hideWinnerModal()" style="padding: 8px 15px; margin-right: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px;">Cancel</button>
-                <button onclick="submitWinner()" style="padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 4px;">Submit</button>
+                <button id="closeModalBtn" style="padding: 8px 15px; margin-right: 10px; background: #e74c3c; color: white; border: none; border-radius: 4px;">Cancel</button>
+                <button id="submitWinnerBtn" style="padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 4px;">Submit</button>
             </div>
         </div>
     </div>
-       
-    
     
     <script>
         let nbActive = false;
@@ -243,7 +253,11 @@
             winnerTeam: document.getElementById('winnerTeam'),
             winMargin: document.getElementById('winMargin'),
             winType: document.getElementById('winType'),
-            customRun: document.getElementById('customRun')
+            customRun: document.getElementById('customRun'),
+            customRunBtn: document.getElementById('customRunBtn'),
+            declareWinnerBtn: document.getElementById('declareWinnerBtn'),
+            closeModalBtn: document.getElementById('closeModalBtn'),
+            submitWinnerBtn: document.getElementById('submitWinnerBtn')
         };
     
         // Initialize event listeners
@@ -252,28 +266,54 @@
             document.querySelectorAll('.run-btn').forEach(button => {
                 button.addEventListener('click', function() {
                     const runs = this.getAttribute('data-runs');
-                    if (runs) {
-                        handleRunButton(runs);
-                    }
+                    handleRunButton(runs);
                 });
             });
-    
+            
+            // Wicket button
+            document.querySelector('.wicket-btn')?.addEventListener('click', function() {
+                updateScore('W');
+            });
+            
+            // WD button
+            document.querySelector('.extra-btn[data-action="WD"]')?.addEventListener('click', function() {
+                updateScore('WD');
+            });
+            
+            // NB button
+            if (domElements.nbButton) {
+                domElements.nbButton.addEventListener('click', handleNbButton);
+            }
+            
+            // NB run buttons
+            document.querySelectorAll('.nb-run-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const runs = this.getAttribute('data-runs');
+                    handleNbRun(runs);
+                });
+            });
+            
             // Custom run button
-            const customRunBtn = document.getElementById('customRunBtn');
-            if (customRunBtn) {
-                customRunBtn.addEventListener('click', function() {
+            if (domElements.customRunBtn) {
+                domElements.customRunBtn.addEventListener('click', function() {
                     const customRun = domElements.customRun?.value;
                     if (!customRun || isNaN(customRun)) {
                         alert('Please enter a valid run value');
                         return;
                     }
-                    updateScore(customRun);
+                    updateScore('custom', customRun);
                 });
             }
-    
-            // NB button
-            if (domElements.nbButton) {
-                domElements.nbButton.addEventListener('click', handleNbButton);
+            
+            // Winner modal buttons
+            if (domElements.declareWinnerBtn) {
+                domElements.declareWinnerBtn.addEventListener('click', showWinnerModal);
+            }
+            if (domElements.closeModalBtn) {
+                domElements.closeModalBtn.addEventListener('click', hideWinnerModal);
+            }
+            if (domElements.submitWinnerBtn) {
+                domElements.submitWinnerBtn.addEventListener('click', submitWinner);
             }
         }
     
@@ -316,7 +356,7 @@
             }
             if (domElements.currentOvers) {
                 domElements.currentOvers.textContent = 
-                    `${parseFloat(data.currentOvers || 0).toFixed(1)} / ${data.totalOvers || 0} overs`;
+                    `${data.currentOvers || '0.0'} / ${data.totalOvers || 0} overs`;
             }
            
             // Update target display
@@ -330,19 +370,25 @@
                 }
             }
                 
-            // Update this over display
+            // Update this over display (only current over's balls)
             if (domElements.thisOverDisplay) {
-                const thisOver = data.thisOver || '';
+                const currentOverBalls = data.thisOver ? data.thisOver.split(',') : [];
                 domElements.thisOverDisplay.innerHTML = 
-                    thisOver.split(',').filter(Boolean).map(ball => 
-                        `<span class="ball-${ball.trim()}">${ball.trim()}</span>`
-                    ).join(' ');
+                    currentOverBalls.map(ball => {
+                        if (ball === 'W') return `<span class="ball-W">W</span>`;
+                        if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
+                        if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
+                        if (ball === '4') return `<span class="ball-4">4</span>`;
+                        if (ball === '6') return `<span class="ball-6">6</span>`;
+                        return `<span class="ball-${ball}">${ball}</span>`;
+                    }).join(' ');
             }
         }
         
         function handleNbButton() {
             nbActive = !nbActive;
             if (domElements.nbButton) {
+                domElements.nbButton.classList.toggle('active', nbActive);
                 domElements.nbButton.classList.toggle('nb-active', nbActive);
             }
             if (domElements.nbRunButtons) {
@@ -352,16 +398,25 @@
         
         function handleNbRun(runs) {
             if (!runs) return;
-            updateScore('NB', parseInt(runs));
-            handleNbButton();
+            updateScore('NB', runs);
+            handleNbButton(); // Turn off NB mode after selection
         }
         
         function handleRunButton(runs) {
-            if (!runs) return;
-            
-            if (nbActive) {
+            if (nbActive && runs !== 'W') { // Can't have NB + W
                 handleNbRun(runs);
             } else {
+                if (runs === 'W') {
+                    // Special handling for wicket to ensure NB mode is off
+                    nbActive = false;
+                    if (domElements.nbButton) {
+                        domElements.nbButton.classList.remove('active');
+                        domElements.nbButton.classList.remove('nb-active');
+                    }
+                    if (domElements.nbRunButtons) {
+                        domElements.nbRunButtons.style.display = 'none';
+                    }
+                }
                 updateScore(runs);
             }
         }
@@ -369,89 +424,44 @@
         function updateScore(action, additionalRuns = null) {
             // Prepare payload based on action type
             const payload = {
-              action: action.toString()
+                action: action.toString()
             };
-          
+        
             // Handle special cases
             if (action === 'NB' && additionalRuns !== null) {
-              payload.nbAdditionalRuns = parseInt(additionalRuns);
-              payload.displayText = `NB+${additionalRuns}`;
+                payload.nbAdditionalRuns = parseInt(additionalRuns);
+                payload.displayText = `NB+${additionalRuns}`;
             } else if (action === 'custom') {
-              const customRun = document.getElementById('customRun').value;
-              if (!customRun || isNaN(customRun)) {
-                alert('Please enter a valid run value');
-                return;
-              }
-              payload.customRun = customRun;
+                const customRun = domElements.customRun?.value;
+                if (!customRun || isNaN(customRun)) {
+                    alert('Please enter a valid run value');
+                    return;
+                }
+                payload.customRun = customRun;
             }
-          
+        
             fetch('/api/update-score', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(payload)
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
             })
             .then(async response => {
-              const data = await response.json();
-              if (!response.ok) {
-                throw new Error(data.error || 'Update failed');
-              }
-              return data;
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Update failed');
+                }
+                return data;
             })
             .then(data => {
-              console.log("Update successful:", data);
-              // Update UI immediately
-              document.getElementById('currentScore').textContent = 
-                `${data.currentRuns} - ${data.currentWickets}`;
-              
-              document.getElementById('currentOvers').textContent = 
-                `${data.currentOvers} / ${data.totalOvers} overs`;
-              
-              // Show only current over (last 6 balls)
-              const currentOverBalls = data.thisOver.split(',');
-              document.getElementById('thisOverDisplay').innerHTML = 
-                currentOverBalls.map(ball => {
-                  if (ball === 'W') return `<span class="ball-W">W</span>`;
-                  if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
-                  if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
-                  if (ball === '4') return `<span class="ball-4">4</span>`;
-                  if (ball === '6') return `<span class="ball-6">6</span>`;
-                  return `<span class="ball-${ball}">${ball}</span>`;
-                }).join(' ');
+                console.log("Update successful:", data);
+                updateUI(data);
             })
             .catch(error => {
-              console.error('Update error:', error);
-              alert(`Update failed: ${error.message}`);
+                console.error('Update error:', error);
+                alert(`Update failed: ${error.message}`);
             });
-          }
-        
-        // NB Button handler
-        function handleNbButton() {
-            nbActive = !nbActive;
-            document.getElementById('nbButton').classList.toggle('active', nbActive);
-            document.getElementById('nbRunButtons').style.display = nbActive ? 'grid' : 'none';
-        }
-        
-        // Run button handler
-        function handleRunButton(runs) {
-            if (nbActive && runs !== 'W') { // Can't have NB + W
-              handleNbRun(runs);
-            } else {
-              if (runs === 'W') {
-                // Special handling for wicket to ensure NB mode is off
-                nbActive = false;
-                document.getElementById('nbButton').classList.remove('active');
-                document.getElementById('nbRunButtons').style.display = 'none';
-              }
-              updateScore(runs);
-            }
-          }
-        
-        // NB Run handler
-        function handleNbRun(runs) {
-            updateScore('NB', runs);
-            handleNbButton(); // Turn off NB mode
         }
         
         function showWinnerModal() {
@@ -523,23 +533,9 @@
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             initializeEventListeners();
-            
-            // Add winner modal buttons if they exist
-            const declareWinnerBtn = document.getElementById('declareWinnerBtn');
-            const closeModalBtn = document.getElementById('closeModalBtn');
-            const submitWinnerBtn = document.getElementById('submitWinnerBtn');
-            
-            if (declareWinnerBtn) declareWinnerBtn.addEventListener('click', showWinnerModal);
-            if (closeModalBtn) closeModalBtn.addEventListener('click', hideWinnerModal);
-            if (submitWinnerBtn) submitWinnerBtn.addEventListener('click', submitWinner);
-            
-            // Initial load
             fetchMatchInfo();
+            setInterval(fetchMatchInfo, 2000);
         });
-        
-        // Fetch match info every 2 seconds
-        setInterval(fetchMatchInfo, 2000);
     </script>
-    
 </body>
 </html>
