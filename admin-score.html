@@ -157,6 +157,26 @@
             padding: 15px !important;
             font-size: 18px !important;
         }
+        #winnerModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #winnerModal > div {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 400px;
+            max-width: 90%;
+        }
     </style>
 </head>
 <body>
@@ -374,14 +394,29 @@
                 }
             }
                 
-            // Update this over display using cached current over balls
+            // Update this over display - only show balls from current over
             if (domElements.thisOverDisplay) {
-                // Only show "No balls yet" if it's truly the start of the match
-                const shouldShowEmpty = currentOverBallsCache.length === 0 && 
-                                      (data.currentOvers === '0.0' || data.currentOvers === 0);
+                // Get only the balls from the current over (last 6 legal balls)
+                const overHistory = data.thisOver ? data.thisOver.split(',') : [];
+                let currentOverBalls = [];
+                let legalBallsCount = 0;
                 
-                domElements.thisOverDisplay.innerHTML = shouldShowEmpty ? 'No balls yet' : 
-                    currentOverBallsCache.map(ball => {
+                // Start from the end and go backwards until we have 6 legal balls
+                for (let i = overHistory.length - 1; i >= 0; i--) {
+                    const ball = overHistory[i];
+                    currentOverBalls.unshift(ball);
+                    
+                    if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
+                        legalBallsCount++;
+                        if (legalBallsCount >= 6) break;
+                    }
+                }
+        
+                // Only show balls from the current over (after the last over break)
+                const ballsInCurrentOver = overHistory.slice(-currentOverBalls.length);
+                
+                domElements.thisOverDisplay.innerHTML = ballsInCurrentOver.length === 0 ? 'No balls yet' : 
+                    ballsInCurrentOver.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
                         if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
@@ -447,11 +482,12 @@
                 payload.customRun = customRun;
             }
         
-            // Show immediate feedback in UI
-            const newBall = action === 'NB' ? `NB+${additionalRuns}` : action;
-            currentOverBallsCache.push(newBall);
-            updateUI({}); // Update UI immediately with cached data
-            
+            // Show loading state
+            const originalText = domElements.currentScore?.textContent;
+            if (domElements.currentScore) {
+                domElements.currentScore.textContent = 'Updating...';
+            }
+        
             fetch('/api/update-score', {
                 method: 'POST',
                 headers: {
@@ -464,22 +500,65 @@
                 if (!response.ok) {
                     throw new Error(data.error || 'Update failed');
                 }
-                // Update cache with server response
-                if (data.currentOverBalls) {
-                    currentOverBallsCache = data.currentOverBalls.split(',');
-                }
                 updateUI(data);
             })
             .catch(error => {
                 console.error('Update error:', error);
-                // Revert the cached change on error
-                currentOverBallsCache.pop();
-                updateUI({});
+                // Revert to original text on error
+                if (domElements.currentScore) {
+                    domElements.currentScore.textContent = originalText;
+                }
                 alert(`Update failed: ${error.message}`);
             });
         }
         
-        // ... (rest of your existing functions remain the same)
+        function showWinnerModal() {
+            if (domElements.winnerModal) {
+                domElements.winnerModal.style.display = 'flex';
+            }
+        }
+        
+        function hideWinnerModal() {
+            if (domElements.winnerModal) {
+                domElements.winnerModal.style.display = 'none';
+            }
+        }
+        
+        function submitWinner() {
+            const winningTeam = domElements.winnerTeam?.value;
+            const winMargin = domElements.winMargin?.value;
+            const winType = domElements.winType?.value;
+        
+            if (!winningTeam || !winMargin || !winType) {
+                alert('Please fill all fields');
+                return;
+            }
+        
+            fetch('/api/set-winner', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    winningTeam,
+                    winMargin,
+                    winType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Winner declared successfully!');
+                    hideWinnerModal();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to declare winner'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to declare winner');
+            });
+        }
     
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
