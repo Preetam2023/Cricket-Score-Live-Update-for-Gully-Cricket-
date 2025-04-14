@@ -216,6 +216,7 @@ app.post('/api/setup', async (req, res) => {
 });
 
 // Score update API
+// In your score update API endpoint (app.post('/api/update-score'))
 app.post('/api/update-score', async (req, res) => {
     try {
       const { action, customRun, nbAdditionalRuns, displayText } = req.body;
@@ -232,7 +233,20 @@ app.post('/api/update-score', async (req, res) => {
   
       let { currentRuns, currentWickets, currentOvers, thisOver, totalOvers } = match;
       let overHistory = thisOver ? thisOver.split(',') : [];
-      let currentOverBalls = overHistory.slice(-6); // Last 6 balls for current over
+      
+      // Get only the current over's balls (last 6 legal balls)
+      let currentOverBalls = [];
+      let legalBallsCount = 0;
+      
+      // Count backwards to find the last 6 legal balls
+      for (let i = overHistory.length - 1; i >= 0; i--) {
+        const ball = overHistory[i];
+        if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
+          currentOverBalls.unshift(ball); // Add to beginning to maintain order
+          legalBallsCount++;
+          if (legalBallsCount === 6) break;
+        }
+      }
   
       // Process the action
       let runsToAdd = 0;
@@ -240,8 +254,7 @@ app.post('/api/update-score', async (req, res) => {
       let isLegalBall = true;
       let overEntry = '';
   
-      // Handle different actions
-      switch (action.toString()) { // Ensure action is string
+      switch (action.toString()) {
         case '0':
           overEntry = '0';
           break;
@@ -284,41 +297,38 @@ app.post('/api/update-score', async (req, res) => {
   
       // Handle over progression (only count legal balls)
       if (isLegalBall) {
-        const currentBalls = overHistory.filter(ball => 
+        const legalBallsInMatch = overHistory.filter(ball => 
           !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-        ).length % 6;
+        ).length;
         
-        // If we've completed an over (6 legal balls)
-        if (currentBalls === 5) {
-          currentOvers = Math.floor(currentOvers) + 1;
-        }
+        const completedOvers = Math.floor(legalBallsInMatch / 6);
+        const ballsInCurrentOver = legalBallsInMatch % 6;
+        
+        // Update currentOvers display (e.g., 4.3 means 4 overs and 3 balls)
+        currentOvers = completedOvers + (ballsInCurrentOver * 0.1);
       }
   
       // Update over history
       overHistory.push(overEntry);
-      currentOverBalls = overHistory.slice(-6); // Update current over balls
+      
+      // Get current over balls for response (last 6 balls including illegal deliveries)
+      const responseOverBalls = overHistory.slice(-6);
   
       // Save updated match
       await match.update({
         currentRuns,
         currentWickets,
-        currentOvers,
+        currentOvers: parseFloat(currentOvers.toFixed(1)), // Ensure single decimal place
         thisOver: overHistory.join(',')
       });
-  
-      // Calculate balls in current over (0.1 to 0.6 format)
-      const legalBallsInOver = currentOverBalls.filter(ball => 
-        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-      ).length;
-      const oversDisplay = `${Math.floor(currentOvers)}.${legalBallsInOver}`;
   
       res.json({ 
         success: true,
         currentRuns,
         currentWickets,
-        currentOvers: oversDisplay,
+        currentOvers: currentOvers.toFixed(1), // Format as "overs.balls"
         totalOvers,
-        thisOver: currentOverBalls.join(','),
+        thisOver: responseOverBalls.join(','), // Only current over's balls
         fullOverHistory: overHistory.join(','),
         message: 'Score updated successfully'
       });
@@ -331,7 +341,6 @@ app.post('/api/update-score', async (req, res) => {
       });
     }
   });
-
 // Set winner API
 app.post('/api/set-winner', async (req, res) => {
   try {
