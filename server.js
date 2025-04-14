@@ -296,7 +296,20 @@ app.post('/api/update-score', async (req, res) => {
       currentOvers = completedOvers + (ballsInOver * 0.1);
   
       // Get only the current over's balls (last 6 entries)
-      const currentOverBalls = overHistory.slice(-6);
+      let currentOverBalls = [];
+      let legalBallsInCurrentOver = 0;
+      
+      // Work backwards through history to find current over's balls
+      for (let i = overHistory.length - 1; i >= 0; i--) {
+        const ball = overHistory[i];
+        currentOverBalls.unshift(ball); // Add to beginning to maintain order
+        
+        // Count legal balls to determine over boundary
+        if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
+          legalBallsInCurrentOver++;
+          if (legalBallsInCurrentOver >= 6) break;
+        }
+      }
   
       // Save updated match
       await match.update({

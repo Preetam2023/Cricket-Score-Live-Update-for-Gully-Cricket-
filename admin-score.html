@@ -373,7 +373,12 @@
             // Update this over display (only current over's balls)
             if (domElements.thisOverDisplay) {
                 const currentOverBalls = data.currentOverBalls ? data.currentOverBalls.split(',') : [];
-                domElements.thisOverDisplay.innerHTML = currentOverBalls.length > 0 ? 
+                
+                // Only show "No balls yet" if it's truly the start of the match
+                const shouldShowEmpty = currentOverBalls.length === 0 && 
+                                      (data.currentOvers === '0.0' || data.currentOvers === 0);
+                
+                domElements.thisOverDisplay.innerHTML = shouldShowEmpty ? 'No balls yet' : 
                     currentOverBalls.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
@@ -381,8 +386,9 @@
                         if (ball === '4') return `<span class="ball-4">4</span>`;
                         if (ball === '6') return `<span class="ball-6">6</span>`;
                         return `<span class="ball-${ball}">${ball}</span>`;
-                    }).join(' ') : 'No balls yet';
+                    }).join(' ');
             }
+        
         }
         
         function handleNbButton() {
@@ -422,7 +428,7 @@
         }
         
         function updateScore(action, additionalRuns = null) {
-            // Prepare payload based on action type
+            // Prepare payload
             const payload = {
                 action: action.toString()
             };
@@ -440,10 +446,10 @@
                 payload.customRun = customRun;
             }
         
-            // Show loading state
-            const originalText = domElements.thisOverDisplay.innerHTML;
-            domElements.thisOverDisplay.innerHTML = 'Updating...';
-        
+            // Disable buttons during update
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = true);
+            
             fetch('/api/update-score', {
                 method: 'POST',
                 headers: {
@@ -459,15 +465,18 @@
                 return data;
             })
             .then(data => {
-                console.log("Update successful:", data);
                 updateUI(data);
             })
             .catch(error => {
                 console.error('Update error:', error);
-                domElements.thisOverDisplay.innerHTML = originalText; // Revert on error
                 alert(`Update failed: ${error.message}`);
+            })
+            .finally(() => {
+                // Re-enable buttons
+                buttons.forEach(btn => btn.disabled = false);
             });
         }
+        
         
         function showWinnerModal() {
             if (domElements.winnerModal) {
