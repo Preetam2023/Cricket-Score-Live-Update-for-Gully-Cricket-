@@ -315,9 +315,9 @@ app.post('/api/update-score', async (req, res) => {
         success: true,
         currentRuns,
         currentWickets,
-        currentOvers: currentOvers.toFixed(1), // Format as "overs.balls"
+        currentOvers: currentOvers.toFixed(1),
         totalOvers,
-        thisOver: currentOverBalls.join(','), // Only current over's balls
+        currentOverBalls: currentOverBalls.join(','), // Only current over's balls
         fullOverHistory: overHistory.join(','),
         message: 'Score updated successfully'
       });
@@ -330,7 +330,7 @@ app.post('/api/update-score', async (req, res) => {
       });
     }
   });
-  
+
 // Set winner API
 app.post('/api/set-winner', async (req, res) => {
   try {
