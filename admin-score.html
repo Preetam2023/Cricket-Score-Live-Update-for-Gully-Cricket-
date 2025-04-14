@@ -339,7 +339,7 @@
     
         function updateUI(data) {
             if (!data) return;
-    
+        
             // Update match info
             if (domElements.matchInfo) {
                 domElements.matchInfo.innerHTML = `
@@ -373,7 +373,7 @@
             // Update this over display (only current over's balls)
             if (domElements.thisOverDisplay) {
                 const currentOverBalls = data.currentOverBalls ? data.currentOverBalls.split(',') : [];
-                domElements.thisOverDisplay.innerHTML = 
+                domElements.thisOverDisplay.innerHTML = currentOverBalls.length > 0 ? 
                     currentOverBalls.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
@@ -381,7 +381,7 @@
                         if (ball === '4') return `<span class="ball-4">4</span>`;
                         if (ball === '6') return `<span class="ball-6">6</span>`;
                         return `<span class="ball-${ball}">${ball}</span>`;
-                    }).join(' ');
+                    }).join(' ') : 'No balls yet';
             }
         }
         
@@ -426,7 +426,7 @@
             const payload = {
                 action: action.toString()
             };
-        
+          
             // Handle special cases
             if (action === 'NB' && additionalRuns !== null) {
                 payload.nbAdditionalRuns = parseInt(additionalRuns);
@@ -439,6 +439,10 @@
                 }
                 payload.customRun = customRun;
             }
+        
+            // Show loading state
+            const originalText = domElements.thisOverDisplay.innerHTML;
+            domElements.thisOverDisplay.innerHTML = 'Updating...';
         
             fetch('/api/update-score', {
                 method: 'POST',
@@ -460,6 +464,7 @@
             })
             .catch(error => {
                 console.error('Update error:', error);
+                domElements.thisOverDisplay.innerHTML = originalText; // Revert on error
                 alert(`Update failed: ${error.message}`);
             });
         }

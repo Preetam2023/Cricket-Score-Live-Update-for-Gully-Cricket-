@@ -218,6 +218,7 @@ app.post('/api/setup', async (req, res) => {
 // Score update API
 // In your score update API endpoint (app.post('/api/update-score'))
 // Update your /api/update-score endpoint in server.js
+// In your /api/update-score endpoint in server.js
 app.post('/api/update-score', async (req, res) => {
     try {
       const { action, customRun, nbAdditionalRuns, displayText } = req.body;
@@ -241,10 +242,8 @@ app.post('/api/update-score', async (req, res) => {
       let isLegalBall = true;
       let overEntry = '';
   
-      switch (action.toString().toLowerCase()) { // Make case insensitive
+      switch (action.toString().toLowerCase()) {
         case '0':
-          overEntry = '0';
-          break;
         case '1':
         case '2':
         case '3':
@@ -283,23 +282,19 @@ app.post('/api/update-score', async (req, res) => {
       currentRuns += runsToAdd;
       currentWickets += wicketToAdd;
   
-      // Calculate legal balls count for over progression
-      const legalBallsCount = overHistory.filter(ball => 
-        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-      ).length;
-  
-      // Update currentOvers display (e.g., 4.3 means 4 overs and 3 balls)
-      const completedOvers = Math.floor(legalBallsCount / 6);
-      const ballsInCurrentOver = legalBallsCount % 6;
-      
-      // Only update currentOvers if it's a legal ball
-      if (isLegalBall) {
-        currentOvers = completedOvers + (ballsInCurrentOver * 0.1);
-      }
-  
       // Update over history
       overHistory.push(overEntry);
       
+      // Calculate legal balls for over progression
+      const legalBalls = overHistory.filter(ball => 
+        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+      ).length;
+  
+      // Calculate current over balls (0.1 to 0.6 format)
+      const ballsInOver = legalBalls % 6;
+      const completedOvers = Math.floor(legalBalls / 6);
+      currentOvers = completedOvers + (ballsInOver * 0.1);
+  
       // Get only the current over's balls (last 6 entries)
       const currentOverBalls = overHistory.slice(-6);
   
@@ -307,7 +302,7 @@ app.post('/api/update-score', async (req, res) => {
       await match.update({
         currentRuns,
         currentWickets,
-        currentOvers: parseFloat(currentOvers.toFixed(1)), // Ensure single decimal place
+        currentOvers: parseFloat(currentOvers.toFixed(1)),
         thisOver: overHistory.join(',')
       });
   
