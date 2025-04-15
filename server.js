@@ -283,29 +283,21 @@ app.post('/api/update-score', async (req, res) => {
         // Get current over history
         let overHistory = match.thisOver ? match.thisOver.split(',') : [];
 
-        // Count previous legal balls
-        const previousLegalBalls = overHistory.filter(ball => 
-            !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-        ).length;
-
         // Add new ball to history
         overHistory.push(overEntry);
 
-        // Count current legal balls
-        const currentLegalBalls = overHistory.filter(ball => 
+        // Count legal balls (excluding wides and no-balls)
+        const legalBalls = overHistory.filter(ball => 
             !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
         ).length;
 
-        // Calculate overs and balls
-        const completedOvers = Math.floor(currentLegalBalls / 6);
-        const ballsInCurrentOver = currentLegalBalls % 6;
-
-        // Determine if we're starting a new over
-        const isNewOver = previousLegalBalls % 6 === 0 && previousLegalBalls > 0;
+        // Calculate completed overs and balls in current over
+        const completedOvers = Math.floor(legalBalls / 6);
+        const ballsInCurrentOver = legalBalls % 6;
 
         // Format current overs display
         let currentOversDisplay;
-        if (ballsInCurrentOver === 0) {
+        if (ballsInCurrentOver === 0 && legalBalls > 0) {
             // Over completed (6 legal balls)
             currentOversDisplay = completedOvers + '.0';
         } else {
@@ -313,13 +305,13 @@ app.post('/api/update-score', async (req, res) => {
             currentOversDisplay = completedOvers + '.' + ballsInCurrentOver;
         }
 
-        // Reset thisOver if we're starting a new over
-        if (isNewOver) {
-            overHistory = [overEntry];
+        // Reset thisOver if we've completed an over (6 legal balls)
+        if (ballsInCurrentOver === 0 && legalBalls > 0) {
+            overHistory = [];
         }
 
         // Get balls from current incomplete over only
-        const currentOverBalls = isNewOver ? [overEntry] : overHistory.slice(-ballsInCurrentOver);
+        const currentOverBalls = overHistory.slice(-ballsInCurrentOver);
 
         // Update match data
         match.currentOvers = parseFloat(currentOversDisplay);
