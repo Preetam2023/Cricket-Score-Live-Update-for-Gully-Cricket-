@@ -286,33 +286,30 @@ app.post('/api/update-score', async (req, res) => {
         // Add new ball to history
         overHistory.push(overEntry);
 
-        // Count only legal deliveries for over progression
+        // Count legal balls (excluding wides and no-balls)
         const legalBalls = overHistory.filter(ball => 
             !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
         ).length;
 
         // FIXED: Correct over calculation
-        const completedOvers = Math.floor(legalBalls / 6);
-        const ballsInCurrentOver = legalBalls % 6;
+        const totalOvers = Math.floor(legalBalls / 6);
+        const ballsInOver = legalBalls % 6;
         
         // Format current overs display (0.1 → 0.5 → 1.0 → 1.1 → 2.0)
-        const currentOversDisplay = ballsInCurrentOver === 0 ? 
-            `${completedOvers}.0` : 
-            `${completedOvers}.${ballsInCurrentOver}`;
+        const currentOversDisplay = ballsInOver === 0 ? 
+            `${totalOvers}.0` : 
+            `${totalOvers}.${ballsInOver}`;
 
-        // Get balls for display - special handling for completed overs
+        // Get balls for display
         let currentOverBalls = [];
-        if (ballsInCurrentOver === 0 && legalBalls > 0) {
-            // When over completes, show all 6 balls of that over
+        if (ballsInOver === 0 && legalBalls > 0) {
+            // When over completes (1.0), show all 6 balls
             currentOverBalls = overHistory.slice(-6);
+            // Start fresh over
+            overHistory = [];
         } else {
             // During over, show current balls
-            currentOverBalls = overHistory.slice(-ballsInCurrentOver);
-        }
-
-        // Reset thisOver when moving to a new over (after completion)
-        if (ballsInCurrentOver === 0 && legalBalls > 0) {
-            overHistory = [];
+            currentOverBalls = overHistory.slice(-ballsInOver);
         }
 
         // Update match data
