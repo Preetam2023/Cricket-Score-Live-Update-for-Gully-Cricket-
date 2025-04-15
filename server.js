@@ -232,7 +232,7 @@ app.post('/api/update-score', async (req, res) => {
         const match = await Match.findOne({
             order: [['id', 'DESC']]
         });
-        
+
         if (!match) throw new Error("Match not initialized");
 
         let runsToAdd = 0;
@@ -270,59 +270,49 @@ app.post('/api/update-score', async (req, res) => {
                     throw new Error('Invalid custom run value');
                 }
                 runsToAdd = parseInt(customRun);
-                overEntry = customRun;
+                overEntry = customRun.toString();
                 break;
             default:
                 throw new Error('Invalid action');
         }
 
-        // Update match data
+        // Update runs and wickets
         match.currentRuns += runsToAdd;
         match.currentWickets += wicketToAdd;
 
-        // Get current over history
+        // Get and update over history
         let overHistory = match.thisOver ? match.thisOver.split(',') : [];
-
-        // Add new ball to history
         overHistory.push(overEntry);
 
-        // Count only legal deliveries for over progression
-        const legalBalls = overHistory.filter(ball => 
+        // Count legal balls
+        const legalBalls = overHistory.filter(ball =>
             !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
         ).length;
 
-        // Calculate completed overs and balls in current over
         const completedOvers = Math.floor(legalBalls / 6);
         const ballsInCurrentOver = legalBalls % 6;
 
-        // Format current overs display correctly
+        // Format overs display as string like "1.3", "2.0", etc.
         let currentOversDisplay;
         if (ballsInCurrentOver === 0 && legalBalls > 0) {
-            // Over completed (6 legal balls)
-            currentOversDisplay = completedOvers + '.0';
+            currentOversDisplay = `${completedOvers}.0`;
+            overHistory = []; // Over completed, reset history
         } else {
-            // In-progress over
-            currentOversDisplay = completedOvers + '.' + ballsInCurrentOver;
+            currentOversDisplay = `${completedOvers}.${ballsInCurrentOver}`;
         }
 
-        // Reset thisOver if we've completed an over (6 legal balls)
-        if (ballsInCurrentOver === 0 && legalBalls > 0) {
-            overHistory = [];
-        }
-
-        // Get balls from current incomplete over only
+        // Update match values
         const currentOverBalls = overHistory.slice(-ballsInCurrentOver);
 
-        // Update match data
-        match.currentOvers = parseFloat(currentOversDisplay);
+        match.currentOvers = currentOversDisplay; // ✅ store as string, not float
         match.thisOver = overHistory.join(',');
         await match.save();
 
-        res.json({ 
+        res.json({
             success: true,
             currentRuns: match.currentRuns,
             currentWickets: match.currentWickets,
-            currentOvers: currentOversDisplay,
+            currentOvers: match.currentOvers,
             totalOvers: match.totalOvers,
             currentOverBalls: currentOverBalls.join(','),
             team1: match.team1,
@@ -343,6 +333,7 @@ app.post('/api/update-score', async (req, res) => {
         });
     }
 });
+
 
 
   // Undo Endpoint 
