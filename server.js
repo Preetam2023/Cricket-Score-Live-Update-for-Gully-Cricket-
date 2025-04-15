@@ -262,7 +262,7 @@ app.post('/api/update-score', async (req, res) => {
                 break;
             case 'nb':
                 runsToAdd = 1 + (parseInt(nbAdditionalRuns) || 0);
-                overEntry = displayText || `NB${nbAdditionalRuns ? `+${nbAdditionalRuns}` : ''}`;
+                overEntry = displayText || `NB+${nbAdditionalRuns || 0}`;
                 isLegalBall = false;
                 break;
             case 'custom':
@@ -280,29 +280,36 @@ app.post('/api/update-score', async (req, res) => {
         match.currentRuns += runsToAdd;
         match.currentWickets += wicketToAdd;
 
-        // Get full over history (includes extras)
-        let overHistory = match.thisOver ? match.thisOver.split(',') : [];
+        // All previous balls (including extras)
+        let ballHistory = match.ballHistory ? match.ballHistory.split(',') : [];
 
-        // Add current ball to history
-        overHistory.push(overEntry);
+        // Add current ball
+        ballHistory.push(overEntry);
 
-        // Filter to only legal balls (exclude WD, NB)
-        const legalBalls = overHistory.filter(ball => 
-            !['WD'].includes(ball) &&
-            !ball.startsWith('NB')
-        );
+        // Count total legal balls
+        const totalLegalBalls = ballHistory.filter(ball =>
+            !['WD'].includes(ball) && !ball.startsWith('NB')
+        ).length;
 
-        // Calculate overs
-        const totalLegalBalls = legalBalls.length;
         const completedOvers = Math.floor(totalLegalBalls / 6);
         const ballsInCurrentOver = totalLegalBalls % 6;
-        const currentOversDisplay = `${completedOvers}.${ballsInCurrentOver}`;
 
-        // Prepare "this over" display: get last X legal balls in current over
-        const lastOverLegalBalls = legalBalls.slice(-ballsInCurrentOver);
+        // Calculate current over display
+        let currentOversDisplay = ballsInCurrentOver === 0 && totalLegalBalls > 0
+            ? `${completedOvers}.0`
+            : `${completedOvers}.${ballsInCurrentOver}`;
+
+        // Extract only legal deliveries for current over
+        const legalBalls = [];
+        for (let i = ballHistory.length - 1; i >= 0 && legalBalls.length < ballsInCurrentOver; i--) {
+            const ball = ballHistory[i];
+            if (ball !== 'WD' && !ball.startsWith('NB')) {
+                legalBalls.unshift(ball);
+            }
+        }
 
         match.currentOvers = parseFloat(currentOversDisplay);
-        match.thisOver = overHistory.join(',');
+        match.ballHistory = ballHistory.join(',');
         await match.save();
 
         res.json({
@@ -311,7 +318,8 @@ app.post('/api/update-score', async (req, res) => {
             currentWickets: match.currentWickets,
             currentOvers: currentOversDisplay,
             totalOvers: match.totalOvers,
-            currentOverBalls: lastOverLegalBalls.join(','),
+            currentOverBalls: legalBalls.join(','),
+            ballHistory: match.ballHistory,
             team1: match.team1,
             team2: match.team2,
             tossWinner: match.tossWinner,
@@ -319,7 +327,6 @@ app.post('/api/update-score', async (req, res) => {
             battingPhase: match.battingPhase,
             targetScore: match.targetScore,
             currentBatting: match.currentBatting,
-            thisOver: match.thisOver
         });
 
     } catch (error) {
@@ -330,6 +337,7 @@ app.post('/api/update-score', async (req, res) => {
         });
     }
 });
+
 
 
 
