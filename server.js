@@ -292,24 +292,27 @@ app.post('/api/update-score', async (req, res) => {
         ).length;
 
         // FIXED: Correct over calculation
-        const totalOvers = Math.floor(legalBalls / 6);
-        const ballsInOver = legalBalls % 6;
-
-        // Format current overs display (0.1 → 0.2 → … → 0.5 → 1.0 → 1.1 → … → 2.0)
-        const currentOversDisplay = ballsInOver === 0 ? 
-            `${totalOvers}.0` : 
-            `${totalOvers}.${ballsInOver}`;
+        const completedOvers = Math.floor(legalBalls / 6);
+        const ballsInCurrentOver = legalBalls % 6;
+        
+        // Format current overs display (0.1 → 0.5 → 1.0 → 1.1 → 2.0)
+        let currentOversDisplay;
+        if (ballsInCurrentOver === 0 && legalBalls > 0) {
+            currentOversDisplay = completedOvers + '.0'; // Over completed
+        } else {
+            currentOversDisplay = completedOvers + '.' + ballsInCurrentOver;
+        }
 
         // Get balls for display
         let currentOverBalls = [];
-        if (ballsInOver === 0 && legalBalls > 0) {
+        if (ballsInCurrentOver === 0 && legalBalls > 0) {
             // When over completes (1.0), show all 6 balls
             currentOverBalls = overHistory.slice(-6);
             // Start fresh over
             overHistory = [];
         } else {
             // During over, show current balls
-            currentOverBalls = overHistory.slice(-ballsInOver);
+            currentOverBalls = overHistory.slice(-ballsInCurrentOver);
         }
 
         // Update match data
@@ -342,7 +345,6 @@ app.post('/api/update-score', async (req, res) => {
         });
     }
 });
-
 
   // Undo Endpoint 
   app.post('/api/undo-action', async (req, res) => {
