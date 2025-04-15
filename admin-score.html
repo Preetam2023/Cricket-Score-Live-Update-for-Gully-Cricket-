@@ -410,24 +410,25 @@
                 
             // Update this over display - only show balls from current over
             if (domElements.thisOverDisplay) {
-                const allBalls = data.thisOver ? data.thisOver.split(',') : [];
-                const currentOverBalls = [];
+                const currentOverBalls = data.currentOverBalls ? data.currentOverBalls.split(',') : [];      
+        
+                // Calculate balls in the current over
+                const overHistory = data.thisOver ? data.thisOver.split(',') : [];
+                let ballsInCurrentOver = [];
                 let legalBallsCount = 0;
-                
-                // Iterate backwards to find balls from current over
-                for (let i = allBalls.length - 1; i >= 0; i--) {
-                    const ball = allBalls[i];
-                    currentOverBalls.unshift(ball);
-                    
-                    // Count only legal balls (exclude WD/NB)
-                    if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
+        
+                for (let i = overHistory.length - 1; i >= 0; i--) {
+                    if (!['WD', 'NB'].includes(overHistory[i])) {
                         legalBallsCount++;
-                        if (legalBallsCount >= 6) break;
+                        ballsInCurrentOver.unshift(overHistory[i]);
+                        if (legalBallsCount >= 6) break; // Only consider 6 legal balls max
                     }
                 }
-                
-                domElements.thisOverDisplay.innerHTML = currentOverBalls.length === 0 ? 'No balls yet' : 
-                    currentOverBalls.map(ball => {
+        
+                // Show no balls message if there haven't been any balls bowled yet for current over.
+                const shouldShowEmpty = ballsInCurrentOver.length === 0 && parseFloat(data.currentOvers) === parseInt(data.currentOvers);        
+                domElements.thisOverDisplay.innerHTML = shouldShowEmpty ? 'No balls yet' : 
+                    ballsInCurrentOver.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
                         if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;

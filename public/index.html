@@ -555,39 +555,23 @@
                 targetDisplay.textContent = '-';
             }
             
-            const thisOverContainer = document.getElementById('this-over-display');
-            let currentOverBalls = [];
-            let allBalls = [];
-            
-            if (mappedData.this_over) {
-                if (Array.isArray(mappedData.this_over)) {
-                    allBalls = mappedData.this_over;
-                } else if (typeof mappedData.this_over === 'string') {
-                    allBalls = mappedData.this_over.split(',');
-                }
-                
-                allBalls = allBalls
-                    .map(ball => ball.toString().trim())
-                    .filter(ball => ball && ball !== '||');
-                
-                // Calculate balls in current over only
-                let legalBallsCount = 0;
-                for (let i = allBalls.length - 1; i >= 0; i--) {
-                    const ball = allBalls[i];
-                    currentOverBalls.unshift(ball);
-                    
-                    // Count only legal balls (exclude WD/NB)
-                    if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
-                        legalBallsCount++;
-                        if (legalBallsCount >= 6) break;
-                    }
+            const thisOverDisplayContainer = document.getElementById('this-over-display');
+            const overHistory = data.thisOver ? data.thisOver.split(',') : [];
+            let ballsInCurrentOver = [];
+            let legalBallsCount = 0;
+        
+            for (let i = overHistory.length - 1; i >= 0; i--) {
+                if (!['WD', 'NB'].includes(overHistory[i])) {
+                    legalBallsCount++;
+                    ballsInCurrentOver.unshift(overHistory[i]);
+                    if (legalBallsCount >= 6) break; // only show the last 6 legal balls
                 }
             }
-    
-            thisOverContainer.innerHTML = '';
-            currentOverBalls.forEach(ball => {
+        
+            thisOverDisplayContainer.innerHTML = '';
+            ballsInCurrentOver.forEach(ball => {
                 if (ball) {
-                    thisOverContainer.innerHTML += formatBall(ball);
+                    thisOverDisplayContainer.innerHTML += formatBall(ball);
                 }
             });
                
