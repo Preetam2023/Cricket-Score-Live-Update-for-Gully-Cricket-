@@ -283,21 +283,26 @@ app.post('/api/update-score', async (req, res) => {
         // Get current over history
         let overHistory = match.thisOver ? match.thisOver.split(',') : [];
 
-        // Add new ball to history
-        overHistory.push(overEntry);
-
-        // Count only legal deliveries for over progression
-        const legalBalls = overHistory.filter(ball => 
+        // Count previous legal balls
+        const previousLegalBalls = overHistory.filter(ball => 
             !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
         ).length;
 
-        // Calculate completed overs and balls in current over
-        const completedOvers = Math.floor(legalBalls / 6);
-        const ballsInCurrentOver = legalBalls % 6;
+        // Add new ball to history
+        overHistory.push(overEntry);
 
-        // Format current overs display
+        // Count current legal balls
+        const currentLegalBalls = overHistory.filter(ball => 
+            !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+        ).length;
+
+        // Calculate overs and balls
+        const completedOvers = Math.floor(currentLegalBalls / 6);
+        const ballsInCurrentOver = currentLegalBalls % 6;
+
+        // FIXED: Proper over display formatting
         let currentOversDisplay;
-        if (ballsInCurrentOver === 0 && legalBalls > 0) {
+        if (ballsInCurrentOver === 0 && currentLegalBalls > 0) {
             // Over completed (6 legal balls)
             currentOversDisplay = completedOvers + '.0';
         } else {
@@ -305,19 +310,16 @@ app.post('/api/update-score', async (req, res) => {
             currentOversDisplay = completedOvers + '.' + ballsInCurrentOver;
         }
 
-        // Get balls for display - show full over when completed
+        // FIXED: Proper over history management
         let currentOverBalls = [];
-        if (ballsInCurrentOver === 0 && legalBalls > 0) {
+        if (ballsInCurrentOver === 0 && currentLegalBalls > 0) {
             // Show full completed over (last 6 balls)
             currentOverBalls = overHistory.slice(-6);
+            // Start fresh over history
+            overHistory = [];
         } else {
             // Show current incomplete over
             currentOverBalls = overHistory.slice(-ballsInCurrentOver);
-        }
-
-        // Reset thisOver if we've completed an over (6 legal balls)
-        if (ballsInCurrentOver === 0 && legalBalls > 0) {
-            overHistory = [];
         }
 
         // Update match data
