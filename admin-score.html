@@ -376,7 +376,7 @@
         function updateUI(data) {
             if (!data) return;
         
-            // Update match info (unchanged)
+            // Update match info
             if (domElements.matchInfo) {
                 domElements.matchInfo.innerHTML = `
                     <strong>${data.team1 || 'Team 1'}</strong> vs <strong>${data.team2 || 'Team 2'}</strong> | 
@@ -384,18 +384,21 @@
                 `;
             }
             
-            // Update score display (unchanged)
+            // Update score display
             const battingTeam = data.currentBatting == 1 ? data.team1 : data.team2;
             if (domElements.battingTeam) domElements.battingTeam.textContent = battingTeam;
             if (domElements.currentScore) {
                 domElements.currentScore.textContent = `${data.currentRuns || 0} - ${data.currentWickets || 0}`;
             }
             if (domElements.currentOvers) {
-                domElements.currentOvers.textContent = 
-                    `${data.currentOvers || '0.0'} / ${data.totalOvers || 0} overs`;
+                // Ensure proper over display format (1.0 instead of 1)
+                const oversDisplay = data.currentOvers.toString().includes('.') ? 
+                    data.currentOvers : 
+                    data.currentOvers + '.0';
+                domElements.currentOvers.textContent = `${oversDisplay} / ${data.totalOvers || 0} overs`;
             }
            
-            // Update target display (unchanged)
+            // Update target display
             if (domElements.targetDisplay) {
                 if (data.battingPhase === 'first') {
                     domElements.targetDisplay.textContent = 'First Innings';
@@ -406,7 +409,7 @@
                 }
             }
                 
-            // Fixed "This Over" display logic
+            // Update this over display
             if (domElements.thisOverDisplay) {
                 const currentOverBalls = data.currentOverBalls ? data.currentOverBalls.split(',') : [];
                 
@@ -420,7 +423,6 @@
                         return `<span class="ball-${ball}">${ball}</span>`;
                     }).join(' ');
             }
-
         }
     
         function handleNbButton() {
