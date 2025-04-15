@@ -412,7 +412,11 @@
             if (domElements.thisOverDisplay) {
                 const currentOverBalls = data.currentOverBalls ? data.currentOverBalls.split(',') : [];
                 
-                domElements.thisOverDisplay.innerHTML = currentOverBalls.length === 0 ? 'No balls yet' : 
+                // Only show "No balls yet" at the very start (0.0 overs)
+                const shouldShowEmpty = currentOverBalls.length === 0 && 
+                                      parseFloat(data.currentOvers) === 0;
+                
+                domElements.thisOverDisplay.innerHTML = shouldShowEmpty ? 'No balls yet' : 
                     currentOverBalls.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
