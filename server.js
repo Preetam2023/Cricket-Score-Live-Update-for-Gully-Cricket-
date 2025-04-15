@@ -303,10 +303,8 @@ app.post('/api/update-score', async (req, res) => {
         // Get balls for display - special handling for completed overs
         let currentOverBalls = [];
         if (ballsInCurrentOver === 0 && totalLegalBalls > 0) {
-            // When over completes (1.0), show all 6 balls of that over
+            // When over completes (1.0), show all 6 balls
             currentOverBalls = overHistory.slice(-6);
-            // Start fresh over
-            overHistory = [];
         } else {
             // During over, show current balls
             currentOverBalls = overHistory.slice(-ballsInCurrentOver);
@@ -333,6 +331,7 @@ app.post('/api/update-score', async (req, res) => {
             currentBatting: match.currentBatting,
             thisOver: match.thisOver
         });
+
 
     } catch (error) {
         console.error('Score update failed:', error);
