@@ -294,8 +294,8 @@ app.post('/api/update-score', async (req, res) => {
         // FIXED: Correct over calculation
         const totalOvers = Math.floor(legalBalls / 6);
         const ballsInOver = legalBalls % 6;
-        
-        // Format current overs display (0.1 → 0.5 → 1.0 → 1.1 → 2.0)
+
+        // Format current overs display (0.1 → 0.2 → … → 0.5 → 1.0 → 1.1 → … → 2.0)
         const currentOversDisplay = ballsInOver === 0 ? 
             `${totalOvers}.0` : 
             `${totalOvers}.${ballsInOver}`;
