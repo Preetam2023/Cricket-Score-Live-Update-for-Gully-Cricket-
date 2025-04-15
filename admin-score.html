@@ -177,6 +177,9 @@
             width: 400px;
             max-width: 90%;
         }
+        .score-display, .this-over {
+            transition: all 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -258,6 +261,8 @@
     
     <script>
         let nbActive = false;
+        let dataCache = {};
+        let isUpdating = false;
         let currentOverBallsCache = []; // Cache to maintain current over balls
         
         // DOM elements cache
@@ -350,6 +355,7 @@
                         if (data.currentOverBalls) {
                             currentOverBallsCache = data.currentOverBalls.split(',');
                         }
+                        dataCache = data;
                         updateUI(data);
                     }
                 })
@@ -364,7 +370,7 @@
         function updateUI(data) {
             if (!data) return;
         
-            // Update match info
+            // Update match info (unchanged)
             if (domElements.matchInfo) {
                 domElements.matchInfo.innerHTML = `
                     <strong>${data.team1 || 'Team 1'}</strong> vs <strong>${data.team2 || 'Team 2'}</strong> | 
@@ -372,7 +378,7 @@
                 `;
             }
             
-            // Update score display
+            // Update score display (unchanged)
             const battingTeam = data.currentBatting == 1 ? data.team1 : data.team2;
             if (domElements.battingTeam) domElements.battingTeam.textContent = battingTeam;
             if (domElements.currentScore) {
@@ -383,7 +389,7 @@
                     `${data.currentOvers || '0.0'} / ${data.totalOvers || 0} overs`;
             }
            
-            // Update target display
+            // Update target display (unchanged)
             if (domElements.targetDisplay) {
                 if (data.battingPhase === 'first') {
                     domElements.targetDisplay.textContent = 'First Innings';
@@ -394,18 +400,28 @@
                 }
             }
                 
-            // Update this over display - only show balls from current over
+            // Fixed "This Over" display logic
             if (domElements.thisOverDisplay) {
                 const overHistory = data.thisOver ? data.thisOver.split(',') : [];
                 
-                // Calculate how many balls are in the current over
-                const currentOverBallsCount = Math.floor((data.currentOvers % 1) * 10) || 0;
+                // Get all balls since last completed over
+                let ballsSinceLastOver = [];
+                let legalBallsCount = 0;
                 
-                // Get only the balls from the current over
-                const ballsInCurrentOver = overHistory.slice(-currentOverBallsCount);
+                // Start from the end and collect all balls since last over break
+                for (let i = overHistory.length - 1; i >= 0; i--) {
+                    const ball = overHistory[i];
+                    ballsSinceLastOver.unshift(ball);
+                    
+                    // Count only legal balls (not WD or NB)
+                    if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
+                        legalBallsCount++;
+                        if (legalBallsCount >= 6) break;
+                    }
+                }
                 
-                domElements.thisOverDisplay.innerHTML = ballsInCurrentOver.length === 0 ? 'No balls yet' : 
-                    ballsInCurrentOver.map(ball => {
+                domElements.thisOverDisplay.innerHTML = ballsSinceLastOver.length === 0 ? 'No balls yet' : 
+                    ballsSinceLastOver.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
                         if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
@@ -453,12 +469,16 @@
         }
         
         function updateScore(action, additionalRuns = null) {
-            // Prepare payload
+            // Prevent multiple simultaneous updates
+            if (isUpdating) return;
+            isUpdating = true;
+            
+            // Prepare payload (unchanged)
             const payload = {
                 action: action.toString()
             };
           
-            // Handle special cases
+            // Handle special cases (unchanged)
             if (action === 'NB' && additionalRuns !== null) {
                 payload.nbAdditionalRuns = parseInt(additionalRuns);
                 payload.displayText = `NB+${additionalRuns}`;
@@ -466,16 +486,22 @@
                 const customRun = domElements.customRun?.value;
                 if (!customRun || isNaN(customRun)) {
                     alert('Please enter a valid run value');
+                    isUpdating = false;
                     return;
                 }
                 payload.customRun = customRun;
             }
         
-            // Show loading state
-            const originalText = domElements.currentScore?.textContent;
-            if (domElements.currentScore) {
-                domElements.currentScore.textContent = 'Updating...';
-            }
+            // Show immediate UI update
+            const newBall = action === 'NB' ? `NB+${additionalRuns}` : action;
+            currentOverBallsCache.push(newBall);
+            
+            // Optimistic UI update
+            const tempData = {
+                ...dataCache, // You'll need to maintain a dataCache variable
+                thisOver: currentOverBallsCache.join(',')
+            };
+            updateUI(tempData);
         
             fetch('/api/update-score', {
                 method: 'POST',
@@ -489,18 +515,24 @@
                 if (!response.ok) {
                     throw new Error(data.error || 'Update failed');
                 }
+                // Update cache with server response
+                if (data.currentOverBalls) {
+                    currentOverBallsCache = data.currentOverBalls.split(',');
+                }
+                dataCache = data; // Update the data cache
                 updateUI(data);
             })
             .catch(error => {
                 console.error('Update error:', error);
-                // Revert to original text on error
-                if (domElements.currentScore) {
-                    domElements.currentScore.textContent = originalText;
-                }
+                // Revert the optimistic update
+                currentOverBallsCache.pop();
+                updateUI(dataCache);
                 alert(`Update failed: ${error.message}`);
+            })
+            .finally(() => {
+                isUpdating = false;
             });
         }
-        
         function showWinnerModal() {
             if (domElements.winnerModal) {
                 domElements.winnerModal.style.display = 'flex';
@@ -548,6 +580,7 @@
                 alert('Failed to declare winner');
             });
         }
+        
     
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
