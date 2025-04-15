@@ -396,24 +396,13 @@
                 
             // Update this over display - only show balls from current over
             if (domElements.thisOverDisplay) {
-                // Get only the balls from the current over (last 6 legal balls)
                 const overHistory = data.thisOver ? data.thisOver.split(',') : [];
-                let currentOverBalls = [];
-                let legalBallsCount = 0;
                 
-                // Start from the end and go backwards until we have 6 legal balls
-                for (let i = overHistory.length - 1; i >= 0; i--) {
-                    const ball = overHistory[i];
-                    currentOverBalls.unshift(ball);
-                    
-                    if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
-                        legalBallsCount++;
-                        if (legalBallsCount >= 6) break;
-                    }
-                }
-        
-                // Only show balls from the current over (after the last over break)
-                const ballsInCurrentOver = overHistory.slice(-currentOverBalls.length);
+                // Calculate how many balls are in the current over
+                const currentOverBallsCount = Math.floor((data.currentOvers % 1) * 10) || 0;
+                
+                // Get only the balls from the current over
+                const ballsInCurrentOver = overHistory.slice(-currentOverBallsCount);
                 
                 domElements.thisOverDisplay.innerHTML = ballsInCurrentOver.length === 0 ? 'No balls yet' : 
                     ballsInCurrentOver.map(ball => {
