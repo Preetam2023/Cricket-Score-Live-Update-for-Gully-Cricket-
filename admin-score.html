@@ -225,7 +225,7 @@
         <input type="number" id="customRun" class="custom-input" min="0" placeholder="Runs">
         <button class="custom-btn" id="customRunBtn">Add Custom Run</button>
     </div>
-    
+    <button class="action-btn winner-btn" id="undoBtn" style="margin-top: 20px; background-color: #e74c3c !important;">Undo Last Action</button>
     <button class="action-btn winner-btn" id="declareWinnerBtn" style="margin-top: 20px;">Declare Winner</button>
 
     <!-- Winner Modal -->
@@ -283,6 +283,7 @@
             customRunBtn: document.getElementById('customRunBtn'),
             declareWinnerBtn: document.getElementById('declareWinnerBtn'),
             closeModalBtn: document.getElementById('closeModalBtn'),
+            undoBtn: document.getElementById('undoBtn'),
             submitWinnerBtn: document.getElementById('submitWinnerBtn')
         };
     
@@ -340,6 +341,11 @@
             }
             if (domElements.submitWinnerBtn) {
                 domElements.submitWinnerBtn.addEventListener('click', submitWinner);
+            }
+
+            // Undo Button
+            if (domElements.undoBtn) {
+                domElements.undoBtn.addEventListener('click', undoLastAction);
             }
         }
     
@@ -570,6 +576,31 @@
                 console.error('Error:', error);
                 alert('Failed to declare winner');
             });
+        }
+
+
+        async function undoLastAction() {
+            try {
+                const response = await fetch('/api/undo-action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Undo failed');
+                
+                // Update UI with the undone state
+                if (data.currentOverBalls) {
+                    currentOverBallsCache = data.currentOverBalls.split(',');
+                }
+                updateUI(data);
+                
+            } catch (error) {
+                console.error('Undo error:', error);
+                alert(`Undo failed: ${error.message}`);
+            }
         }
         
     

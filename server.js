@@ -281,8 +281,12 @@ app.post('/api/update-score', async (req, res) => {
       match.currentWickets += wicketToAdd;
   
       // Update over history
-      const overHistory = match.thisOver ? match.thisOver.split(',') : [];
+      let overHistory = [];
+      if (match.thisOver && match.matchStatus === 'ongoing') {
+        overHistory = match.thisOver.split(',');
+      }
       overHistory.push(overEntry);
+  
       
       // Calculate legal balls for over progression
       const legalBalls = overHistory.filter(ball => 
@@ -308,7 +312,7 @@ app.post('/api/update-score', async (req, res) => {
         currentWickets: match.currentWickets,
         currentOvers: match.currentOvers.toFixed(1),
         totalOvers: match.totalOvers,
-        currentOverBalls: ballsInCurrentOver.join(','), // Only current over balls
+        currentOverBalls: ballsInCurrentOver.join(','),
         team1: match.team1,
         team2: match.team2,
         tossWinner: match.tossWinner,
@@ -316,11 +320,94 @@ app.post('/api/update-score', async (req, res) => {
         battingPhase: match.battingPhase,
         targetScore: match.targetScore,
         currentBatting: match.currentBatting,
-        thisOver: match.thisOver // Full over history
+        thisOver: ballsInCurrentOver.join(',') // Only store current over balls
       });
   
     } catch (error) {
       console.error('Score update failed:', error);
+      res.status(400).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+
+  // Undo Endpoint 
+  app.post('/api/undo-action', async (req, res) => {
+    try {
+      const match = await Match.findOne({
+        order: [['id', 'DESC']]
+      });
+      
+      if (!match) throw new Error("Match not initialized");
+      if (match.matchStatus !== 'ongoing') throw new Error("Cannot undo completed match");
+  
+      const overHistory = match.thisOver ? match.thisOver.split(',') : [];
+      if (overHistory.length === 0) throw new Error("Nothing to undo");
+  
+      // Get the last action
+      const lastAction = overHistory.pop();
+      
+      // Calculate how to reverse the last action
+      let runsToSubtract = 0;
+      let wicketToSubtract = 0;
+      
+      switch (lastAction) {
+        case 'W':
+          wicketToSubtract = 1;
+          break;
+        case 'WD':
+          runsToSubtract = 1;
+          break;
+        case 'NB':
+        case lastAction.startsWith('NB+') && lastAction:
+          const nbRuns = lastAction.includes('+') ? parseInt(lastAction.split('+')[1]) || 0 : 0;
+          runsToSubtract = 1 + nbRuns;
+          break;
+        default:
+          // Regular run
+          runsToSubtract = parseInt(lastAction) || 0;
+      }
+  
+      // Update match data
+      match.currentRuns = Math.max(0, match.currentRuns - runsToSubtract);
+      match.currentWickets = Math.max(0, match.currentWickets - wicketToSubtract);
+      match.thisOver = overHistory.join(',');
+  
+      // Recalculate overs
+      const legalBalls = overHistory.filter(ball => 
+        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+      ).length;
+      const ballsInOver = legalBalls % 6;
+      const completedOvers = Math.floor(legalBalls / 6);
+      match.currentOvers = completedOvers + (ballsInOver * 0.1);
+  
+      await match.save();
+  
+      // Get balls from current incomplete over only
+      const currentOverBallsCount = Math.floor((match.currentOvers % 1) * 10);
+      const ballsInCurrentOver = overHistory.slice(-currentOverBallsCount);
+  
+      res.json({ 
+        success: true,
+        currentRuns: match.currentRuns,
+        currentWickets: match.currentWickets,
+        currentOvers: match.currentOvers.toFixed(1),
+        totalOvers: match.totalOvers,
+        currentOverBalls: ballsInCurrentOver.join(','),
+        team1: match.team1,
+        team2: match.team2,
+        tossWinner: match.tossWinner,
+        tossDecision: match.tossDecision,
+        battingPhase: match.battingPhase,
+        targetScore: match.targetScore,
+        currentBatting: match.currentBatting,
+        thisOver: overHistory.join(',')
+      });
+  
+    } catch (error) {
+      console.error('Undo action failed:', error);
       res.status(400).json({
         success: false,
         error: error.message
