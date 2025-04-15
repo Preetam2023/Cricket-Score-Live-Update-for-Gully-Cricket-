@@ -557,19 +557,33 @@
             
             const thisOverContainer = document.getElementById('this-over-display');
             let currentOverBalls = [];
+            let allBalls = [];
             
             if (mappedData.this_over) {
                 if (Array.isArray(mappedData.this_over)) {
-                    currentOverBalls = mappedData.this_over;
+                    allBalls = mappedData.this_over;
                 } else if (typeof mappedData.this_over === 'string') {
-                    currentOverBalls = mappedData.this_over.split(/[, ]+/);
+                    allBalls = mappedData.this_over.split(',');
                 }
                 
-                currentOverBalls = currentOverBalls
+                allBalls = allBalls
                     .map(ball => ball.toString().trim())
                     .filter(ball => ball && ball !== '||');
+                
+                // Calculate balls in current over only
+                let legalBallsCount = 0;
+                for (let i = allBalls.length - 1; i >= 0; i--) {
+                    const ball = allBalls[i];
+                    currentOverBalls.unshift(ball);
+                    
+                    // Count only legal balls (exclude WD/NB)
+                    if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
+                        legalBallsCount++;
+                        if (legalBallsCount >= 6) break;
+                    }
+                }
             }
-            
+    
             thisOverContainer.innerHTML = '';
             currentOverBalls.forEach(ball => {
                 if (ball) {
