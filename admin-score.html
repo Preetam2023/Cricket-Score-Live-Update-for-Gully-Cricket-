@@ -404,24 +404,14 @@
             if (domElements.thisOverDisplay) {
                 const overHistory = data.thisOver ? data.thisOver.split(',') : [];
                 
-                // Get all balls since last completed over
-                let ballsSinceLastOver = [];
-                let legalBallsCount = 0;
+                // Calculate balls in current incomplete over
+                const currentOverBallsCount = Math.floor((data.currentOvers % 1) * 10);
                 
-                // Start from the end and collect all balls since last over break
-                for (let i = overHistory.length - 1; i >= 0; i--) {
-                    const ball = overHistory[i];
-                    ballsSinceLastOver.unshift(ball);
-                    
-                    // Count only legal balls (not WD or NB)
-                    if (!['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')) {
-                        legalBallsCount++;
-                        if (legalBallsCount >= 6) break;
-                    }
-                }
+                // Get only the balls from current incomplete over
+                const ballsInCurrentOver = overHistory.slice(-currentOverBallsCount);
                 
-                domElements.thisOverDisplay.innerHTML = ballsSinceLastOver.length === 0 ? 'No balls yet' : 
-                    ballsSinceLastOver.map(ball => {
+                domElements.thisOverDisplay.innerHTML = ballsInCurrentOver.length === 0 ? 'No balls yet' : 
+                    ballsInCurrentOver.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
                         if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
@@ -430,6 +420,7 @@
                         return `<span class="ball-${ball}">${ball}</span>`;
                     }).join(' ');
             }
+
         }
     
         function handleNbButton() {
