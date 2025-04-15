@@ -281,11 +281,19 @@ app.post('/api/update-score', async (req, res) => {
       match.currentWickets += wicketToAdd;
   
       // Update over history
-      let overHistory = [];
-      if (match.thisOver && match.matchStatus === 'ongoing') {
-        overHistory = match.thisOver.split(',');
+      const legalBallsBefore = match.thisOver ? 
+      match.thisOver.split(',').filter(ball => 
+        !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
+      ).length : 0;
+
+      let overHistory = match.thisOver ? match.thisOver.split(',') : [];
+    
+      // If we've completed an over (6 legal balls), reset for new over
+      if (legalBallsBefore % 6 === 0 && legalBallsBefore > 0) {
+        overHistory = [];
       }
       overHistory.push(overEntry);
+
   
       
       // Calculate legal balls for over progression
@@ -299,8 +307,8 @@ app.post('/api/update-score', async (req, res) => {
       match.currentOvers = completedOvers + (ballsInOver * 0.1);
   
       // Get balls from current incomplete over only
-      const currentOverBallsCount = Math.floor((match.currentOvers % 1) * 10);
-      const ballsInCurrentOver = overHistory.slice(-currentOverBallsCount);
+      const currentOverBalls = overHistory.slice(-Math.floor((match.currentOvers % 1) * 10));
+  
   
       // Save updated match
       match.thisOver = overHistory.join(',');
@@ -312,7 +320,7 @@ app.post('/api/update-score', async (req, res) => {
         currentWickets: match.currentWickets,
         currentOvers: match.currentOvers.toFixed(1),
         totalOvers: match.totalOvers,
-        currentOverBalls: ballsInCurrentOver.join(','),
+        currentOverBalls: currentOverBalls.join(','),
         team1: match.team1,
         team2: match.team2,
         tossWinner: match.tossWinner,
@@ -320,7 +328,7 @@ app.post('/api/update-score', async (req, res) => {
         battingPhase: match.battingPhase,
         targetScore: match.targetScore,
         currentBatting: match.currentBatting,
-        thisOver: ballsInCurrentOver.join(',') // Only store current over balls
+        thisOver: match.thisOver // Now contains only current over's balls
       });
   
     } catch (error) {

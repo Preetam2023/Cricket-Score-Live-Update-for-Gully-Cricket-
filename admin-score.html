@@ -408,16 +408,10 @@
                 
             // Fixed "This Over" display logic
             if (domElements.thisOverDisplay) {
-                const overHistory = data.thisOver ? data.thisOver.split(',') : [];
+                const currentOverBalls = data.currentOverBalls ? data.currentOverBalls.split(',') : [];
                 
-                // Calculate balls in current incomplete over
-                const currentOverBallsCount = Math.floor((data.currentOvers % 1) * 10);
-                
-                // Get only the balls from current incomplete over
-                const ballsInCurrentOver = overHistory.slice(-currentOverBallsCount);
-                
-                domElements.thisOverDisplay.innerHTML = ballsInCurrentOver.length === 0 ? 'No balls yet' : 
-                    ballsInCurrentOver.map(ball => {
+                domElements.thisOverDisplay.innerHTML = currentOverBalls.length === 0 ? 'No balls yet' : 
+                    currentOverBalls.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
                         if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
                         if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
