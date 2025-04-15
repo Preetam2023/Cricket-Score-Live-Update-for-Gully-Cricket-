@@ -340,7 +340,7 @@ app.post('/api/update-score', async (req, res) => {
             success: false,
             error: error.message
         });
-    }g
+    }
 });
 
 
