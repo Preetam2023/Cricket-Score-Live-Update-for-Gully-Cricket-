@@ -286,7 +286,7 @@ app.post('/api/update-score', async (req, res) => {
         // Add new ball to history
         overHistory.push(overEntry);
 
-        // Count legal balls (excluding wides and no-balls)
+        // Count only legal deliveries for over progression
         const legalBalls = overHistory.filter(ball => 
             !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
         ).length;
@@ -295,7 +295,7 @@ app.post('/api/update-score', async (req, res) => {
         const completedOvers = Math.floor(legalBalls / 6);
         const ballsInCurrentOver = legalBalls % 6;
 
-        // Format current overs display
+        // Format current overs display correctly
         let currentOversDisplay;
         if (ballsInCurrentOver === 0 && legalBalls > 0) {
             // Over completed (6 legal balls)
