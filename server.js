@@ -295,7 +295,7 @@ app.post('/api/update-score', async (req, res) => {
         const completedOvers = Math.floor(legalBalls / 6);
         const ballsInCurrentOver = legalBalls % 6;
 
-        // FIXED: Proper over display formatting
+        // Format current overs display
         let currentOversDisplay;
         if (ballsInCurrentOver === 0 && legalBalls > 0) {
             // Over completed (6 legal balls)
@@ -305,13 +305,20 @@ app.post('/api/update-score', async (req, res) => {
             currentOversDisplay = completedOvers + '.' + ballsInCurrentOver;
         }
 
-        // FIXED: Reset thisOver when moving to a new over
+        // Get balls for display - show full over when completed
+        let currentOverBalls = [];
+        if (ballsInCurrentOver === 0 && legalBalls > 0) {
+            // Show full completed over (last 6 balls)
+            currentOverBalls = overHistory.slice(-6);
+        } else {
+            // Show current incomplete over
+            currentOverBalls = overHistory.slice(-ballsInCurrentOver);
+        }
+
+        // Reset thisOver if we've completed an over (6 legal balls)
         if (ballsInCurrentOver === 0 && legalBalls > 0) {
             overHistory = [];
         }
-
-        // Get balls from current incomplete over only
-        const currentOverBalls = ballsInCurrentOver === 0 ? [] : overHistory.slice(-ballsInCurrentOver);
 
         // Update match data
         match.currentOvers = parseFloat(currentOversDisplay);
