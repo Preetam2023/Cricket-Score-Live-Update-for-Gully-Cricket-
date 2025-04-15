@@ -410,23 +410,21 @@
                 
             // Update this over display - only show balls from current over
             if (domElements.thisOverDisplay) {
-                const currentOverBalls = data.currentOverBalls ? data.currentOverBalls.split(',') : [];      
-        
-                // Calculate balls in the current over
                 const overHistory = data.thisOver ? data.thisOver.split(',') : [];
                 let ballsInCurrentOver = [];
                 let legalBallsCount = 0;
+                const currentOverIndex = Math.floor(data.currentOvers); // Get current over index (4 in 4.3)
         
-                for (let i = overHistory.length - 1; i >= 0; i--) {
-                    if (!['WD', 'NB'].includes(overHistory[i])) {
+                // Count legal balls for the current over
+                overHistory.forEach((ball, index) => {
+                    if (index >= currentOverIndex * 6 && legalBallsCount < 6 && !['WD', 'NB'].includes(ball)) {
+                        ballsInCurrentOver.push(ball);
                         legalBallsCount++;
-                        ballsInCurrentOver.unshift(overHistory[i]);
-                        if (legalBallsCount >= 6) break; // Only consider 6 legal balls max
                     }
-                }
+                });
         
-                // Show no balls message if there haven't been any balls bowled yet for current over.
-                const shouldShowEmpty = ballsInCurrentOver.length === 0 && parseFloat(data.currentOvers) === parseInt(data.currentOvers);        
+                // Show no balls message if there have been no balls bowled yet for the current over.
+                const shouldShowEmpty = ballsInCurrentOver.length === 0 && parseFloat(data.currentOvers) === currentOverIndex;        
                 domElements.thisOverDisplay.innerHTML = shouldShowEmpty ? 'No balls yet' : 
                     ballsInCurrentOver.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
@@ -437,6 +435,7 @@
                         return `<span class="ball-${ball}">${ball}</span>`;
                     }).join(' ');
             }
+        
         }
     
         function handleNbButton() {

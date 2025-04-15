@@ -559,14 +559,15 @@
             const overHistory = data.thisOver ? data.thisOver.split(',') : [];
             let ballsInCurrentOver = [];
             let legalBallsCount = 0;
+            const currentOverIndex = Math.floor(data.currentOvers); // Get current over index (4 in 4.3)
         
-            for (let i = overHistory.length - 1; i >= 0; i--) {
-                if (!['WD', 'NB'].includes(overHistory[i])) {
+            // Count legal balls for the current over
+            overHistory.forEach((ball, index) => {
+                if (index >= currentOverIndex * 6 && legalBallsCount < 6 && !['WD', 'NB'].includes(ball)) {
+                    ballsInCurrentOver.push(ball);
                     legalBallsCount++;
-                    ballsInCurrentOver.unshift(overHistory[i]);
-                    if (legalBallsCount >= 6) break; // only show the last 6 legal balls
                 }
-            }
+            });
         
             thisOverDisplayContainer.innerHTML = '';
             ballsInCurrentOver.forEach(ball => {
