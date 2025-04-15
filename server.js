@@ -232,7 +232,7 @@ app.post('/api/update-score', async (req, res) => {
         const match = await Match.findOne({
             order: [['id', 'DESC']]
         });
-        
+
         if (!match) throw new Error("Match not initialized");
 
         let runsToAdd = 0;
@@ -280,60 +280,38 @@ app.post('/api/update-score', async (req, res) => {
         match.currentRuns += runsToAdd;
         match.currentWickets += wicketToAdd;
 
-        // Get current over history
+        // Get full over history (includes extras)
         let overHistory = match.thisOver ? match.thisOver.split(',') : [];
 
-        // Count previous legal balls
-        const previousLegalBalls = overHistory.filter(ball => 
-            !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-        ).length;
-
-        // Add new ball to history
+        // Add current ball to history
         overHistory.push(overEntry);
 
-        // Count current legal balls
-        const currentLegalBalls = overHistory.filter(ball => 
-            !['WD', 'NB'].includes(ball) && !ball.startsWith('NB+')
-        ).length;
+        // Filter to only legal balls (exclude WD, NB)
+        const legalBalls = overHistory.filter(ball => 
+            !['WD'].includes(ball) &&
+            !ball.startsWith('NB')
+        );
 
-        // Calculate overs and balls
-        const completedOvers = Math.floor(currentLegalBalls / 6);
-        const ballsInCurrentOver = currentLegalBalls % 6;
+        // Calculate overs
+        const totalLegalBalls = legalBalls.length;
+        const completedOvers = Math.floor(totalLegalBalls / 6);
+        const ballsInCurrentOver = totalLegalBalls % 6;
+        const currentOversDisplay = `${completedOvers}.${ballsInCurrentOver}`;
 
-        // FIXED: Proper over display formatting
-        let currentOversDisplay;
-        if (ballsInCurrentOver === 0 && currentLegalBalls > 0) {
-            // Over completed (6 legal balls)
-            currentOversDisplay = completedOvers + '.0';
-        } else {
-            // In-progress over
-            currentOversDisplay = completedOvers + '.' + ballsInCurrentOver;
-        }
+        // Prepare "this over" display: get last X legal balls in current over
+        const lastOverLegalBalls = legalBalls.slice(-ballsInCurrentOver);
 
-        // FIXED: Proper over history management
-        let currentOverBalls = [];
-        if (ballsInCurrentOver === 0 && currentLegalBalls > 0) {
-            // Show full completed over (last 6 balls)
-            currentOverBalls = overHistory.slice(-6);
-            // Start fresh over history
-            overHistory = [];
-        } else {
-            // Show current incomplete over
-            currentOverBalls = overHistory.slice(-ballsInCurrentOver);
-        }
-
-        // Update match data
         match.currentOvers = parseFloat(currentOversDisplay);
         match.thisOver = overHistory.join(',');
         await match.save();
 
-        res.json({ 
+        res.json({
             success: true,
             currentRuns: match.currentRuns,
             currentWickets: match.currentWickets,
             currentOvers: currentOversDisplay,
             totalOvers: match.totalOvers,
-            currentOverBalls: currentOverBalls.join(','),
+            currentOverBalls: lastOverLegalBalls.join(','),
             team1: match.team1,
             team2: match.team2,
             tossWinner: match.tossWinner,
