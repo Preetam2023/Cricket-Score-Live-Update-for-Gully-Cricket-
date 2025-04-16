@@ -415,7 +415,7 @@
                 let legalBallsCount = 0;
         
                 const currentOverIndex = Math.floor(data.currentOvers); // Get current over index (e.g., 4 in 4.3)
-                let currentOverBallsCount = (data.currentOvers % 1) * 10; // Get balls in the current over
+                const totalOvers = Math.floor(data.totalOvers);
         
                 // Count legal balls for the current over
                 overHistory.forEach((ball, index) => {
@@ -425,17 +425,17 @@
                     }
                 });
         
-                // Show no balls message ONLY if currentOvers is 0.0 (no balls bowled yet)
-                const shouldShowEmpty = ballsInCurrentOver.length === 0 && data.currentOvers === '0.0';        
-                domElements.thisOverDisplay.innerHTML = shouldShowEmpty ? 'No balls yet' : 
-                    ballsInCurrentOver.map(ball => {
-                        if (ball === 'W') return `<span class="ball-W">W</span>`;
-                        if (ball === 'WD') return `<span class="ball-WD">WD</span>`;
-                        if (ball.startsWith('NB')) return `<span class="ball-NB">${ball}</span>`;
-                        if (ball === '4') return `<span class="ball-4">4</span>`;
-                        if (ball === '6') return `<span class="ball-6">6</span>`;
-                        return `<span class="ball-${ball}">${ball}</span>`;
-                    }).join(' ');
+                // Show "No balls yet" only for the very start of the match
+                const shouldShowEmpty = data.currentOvers === '0.0';        
+                if (shouldShowEmpty) {
+                    domElements.thisOverDisplay.innerHTML = 'No balls yet';
+                } else if (currentOverIndex < totalOvers) { // At the end of the current over
+                    domElements.thisOverDisplay.innerHTML = ballsInCurrentOver.length > 0 ? 
+                        ballsInCurrentOver.join(', ') : 'No balls in this over';
+                } else {
+                    // Show the next delivery for the current over
+                    domElements.thisOverDisplay.innerHTML = ballsInCurrentOver.join(', ');
+                }
             }
         
         }

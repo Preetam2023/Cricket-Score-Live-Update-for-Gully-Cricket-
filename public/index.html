@@ -526,26 +526,26 @@
                 match_status: data.matchStatus || data.match_status || 'in_progress'
             };
         
-            // Now use the mapped data
+            // Update UI elements
             document.getElementById('team1-name').textContent = mappedData.team1;
             document.getElementById('team2-name').textContent = mappedData.team2;
-            
+        
             const tossWinner = mappedData.toss_winner === 'team1' ? mappedData.team1 : mappedData.team2;
             const tossDecision = mappedData.toss_decision === 'bat' ? 'Chose to Batting' : 'Chose to Bowling';
             document.getElementById('toss-info').textContent = 
                 `Toss Winner : ${tossWinner} | ${tossDecision}`;
-            
+        
             const battingTeam = mappedData.current_batting == 1 ? mappedData.team1 : mappedData.team2;
             document.getElementById('current-batting-team').textContent = battingTeam;
-            
+        
             document.getElementById('current-runs').textContent = mappedData.current_runs;
             document.getElementById('current-wickets').textContent = `- ${mappedData.current_wickets}`;
-            
+        
             const currentOvers = parseFloat(mappedData.current_overs) || 0;
             const totalOvers = parseFloat(mappedData.total_overs) || 0;
             document.getElementById('current-overs').textContent = 
                 `${currentOvers.toFixed(1)} / ${totalOvers} overs`;
-            
+        
             const targetDisplay = document.getElementById('target-display');
             if (mappedData.batting_phase === 'first') {
                 targetDisplay.textContent = 'First Batting';
@@ -554,15 +554,14 @@
             } else {
                 targetDisplay.textContent = '-';
             }
-            
-            // Update this over display
-            const thisOverDisplayContainer = document.getElementById('this-over-display');
-            const overHistory = data.thisOver ? data.thisOver.split(',') : [];
+        
+            const thisOverContainer = document.getElementById('this-over-display');
+            const overHistory = mappedData.this_over ? mappedData.this_over.split(',') : [];
             let ballsInCurrentOver = [];
             let legalBallsCount = 0;
         
-            const currentOverIndex = Math.floor(data.currentOvers); // Get current over index (e.g., 4 in 4.3)
-            let currentOverBallsCount = (data.currentOvers % 1) * 10; // Calculate balls in the current over
+            const currentOverIndex = Math.floor(mappedData.current_overs); // Get current over index (e.g., 4 in 4.3)
+            const totalOversInMatch = Math.floor(mappedData.total_overs);
         
             // Count legal balls for the current over
             overHistory.forEach((ball, index) => {
@@ -572,19 +571,19 @@
                 }
             });
         
-            thisOverDisplayContainer.innerHTML = '';
-            // Show the balls for the current over
-            ballsInCurrentOver.forEach(ball => {
-                if (ball) {
-                    thisOverDisplayContainer.innerHTML += formatBall(ball);
-                }
-            });
-        
-            // Show "No balls yet" only if no balls were bowled yet during the current match
-            if (ballsInCurrentOver.length === 0 && currentOverIndex === 0 && data.currentOvers === '0.0') {
-                thisOverDisplayContainer.innerHTML = 'No balls yet';
+            // Show "No balls yet" only for the very start of the match
+            const shouldShowEmpty = mappedData.current_overs === '0.0';        
+            if (shouldShowEmpty) {
+                thisOverContainer.innerHTML = 'No balls yet';
+            } else if (currentOverIndex < totalOversInMatch) { // At the end of the current over
+                thisOverContainer.innerHTML = ballsInCurrentOver.length > 0 ? 
+                    ballsInCurrentOver.join(', ') : 'No balls in this over';
+            } else {
+                // Show the current Over Balls
+                thisOverContainer.innerHTML = ballsInCurrentOver.join(', ');
             }
-               
+        
+            // Handle last updated time
             if (mappedData.last_updated) {
                 const date = new Date(mappedData.last_updated);
                 document.getElementById('last-updated').textContent = 
@@ -592,7 +591,8 @@
             } else {
                 document.getElementById('last-updated').textContent = 'Last updated: Just now';
             }
-            
+        
+            // Handle completed match status
             if (mappedData.match_status === 'completed') {
                 sessionStorage.setItem('winnerData', JSON.stringify(mappedData));
             }
