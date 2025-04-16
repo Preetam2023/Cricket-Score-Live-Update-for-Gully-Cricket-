@@ -413,18 +413,20 @@
                 const overHistory = data.thisOver ? data.thisOver.split(',') : [];
                 let ballsInCurrentOver = [];
                 let legalBallsCount = 0;
-                const currentOverIndex = Math.floor(data.currentOvers); // Get current over index (4 in 4.3)
+        
+                const currentOverIndex = Math.floor(data.currentOvers); // Get current over index (e.g., 4 in 4.3)
+                let currentOverBallsCount = (data.currentOvers % 1) * 10; // Get balls in the current over
         
                 // Count legal balls for the current over
                 overHistory.forEach((ball, index) => {
-                    if (index >= currentOverIndex * 6 && legalBallsCount < 6 && !['WD', 'NB'].includes(ball)) {
+                    if (Math.floor(index / 6) === currentOverIndex && legalBallsCount < 6 && !['WD', 'NB'].includes(ball)) {
                         ballsInCurrentOver.push(ball);
                         legalBallsCount++;
                     }
                 });
         
-                // Show no balls message if there have been no balls bowled yet for the current over.
-                const shouldShowEmpty = ballsInCurrentOver.length === 0 && parseFloat(data.currentOvers) === currentOverIndex;        
+                // Show no balls message ONLY if currentOvers is 0.0 (no balls bowled yet)
+                const shouldShowEmpty = ballsInCurrentOver.length === 0 && data.currentOvers === '0.0';        
                 domElements.thisOverDisplay.innerHTML = shouldShowEmpty ? 'No balls yet' : 
                     ballsInCurrentOver.map(ball => {
                         if (ball === 'W') return `<span class="ball-W">W</span>`;
